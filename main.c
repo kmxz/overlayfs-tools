@@ -21,7 +21,7 @@ void print_help_and_exit() {
     puts("Options:");
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
-    puts("  -v, --verbose              when a directory only exists in the newer version, still list every file of the directory");
+    puts("  -v, --verbose              with diff action only: when a directory only exists in the newer version, still list every file of the directory");
     puts("Warning:");
     puts("  Only works for regular files, symbolic links and directories. Do not use it on OverlayFS with device files, socket files, etc..");
     puts("  Hard links may be broken (i.e. resulting in duplicated independent files).");
@@ -57,6 +57,16 @@ bool is_mounted(const char *lower, const char *upper) {
         }
     }
     return false;
+}
+
+void check_mounted(const char *lower, const char *upper) {
+    if (is_mounted(lower, upper)) {
+        printf("It is strongly recommended to unmount OverlayFS first. Still continue (not recommended)?: \n");
+        int r = getchar();
+        if (r != 'Y' && r != 'y') {
+            exit(EXIT_FAILURE);
+        }
+    }
 }
 
 bool directory_exists(const char *path) {
@@ -120,22 +130,16 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    if (is_mounted(lower, upper)) {
-        printf("It is strongly recommended to unmount OverlayFS first. Still continue (not recommended)?: \n");
-        int r = getchar();
-        if (r != 'Y' && r != 'y') {
-            exit(EXIT_FAILURE);
-        }
-    }
-
     if (optind == argc - 1) {
         set_globals(lower, upper, verbose ? 2 : 1);
         if (strcmp(argv[optind], "vacuum") == 0) {
-
+            check_mounted(lower, upper);
+            // TODO
         } else if (strcmp(argv[optind], "diff") == 0) {
-
+            // TODO
         } else if (strcmp(argv[optind], "merge") == 0) {
-
+            check_mounted(lower, upper);
+            // TODO
         }
     } else {
         puts("Please specify one action.");
