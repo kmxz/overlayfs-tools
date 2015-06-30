@@ -1,3 +1,5 @@
+**This project is unfinished and NOT usable yet.**
+
 overlayfs-utils
 ========
 
@@ -22,7 +24,8 @@ See `./overlay --help` for more.
 
 Warning
 --------
-- Only works for regular files, symbolic links and directories. Do not use it on OverlayFS with device files, socket files, etc..
+- Only works for regular files and directories. Do not use it on OverlayFS with device files, socket files, etc..
 - Hard links may be broken (i.e. resulting in duplicated independent files).
+- The current version only take care about file content. All attributes (owner, mode, time, etc.) will be lost.
 - This program only works for OverlayFS with only one lower layer.
 - It is recommended to have the OverlayFS unmounted before running this program.
