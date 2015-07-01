@@ -1,3 +1,9 @@
+/*
+ * main.c
+ *
+ * the command line user interface
+ */
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,6 +12,7 @@
 #include <linux/limits.h>
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <attr/xattr.h>
 #include "logic.h"
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
@@ -21,11 +28,11 @@ void print_help_and_exit() {
     puts("Options:");
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
-    puts("  -v, --verbose              with diff action only: when a directory only exists in the newer version, still list every file of the directory");
+    puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
     puts("Warning:");
     puts("  Only works for regular files and directories. Do not use it on OverlayFS with device files, socket files, etc..");
     puts("  Hard links may be broken (i.e. resulting in duplicated independent files).");
-    puts("  The current version only take care about file content. All attributes (owner, mode, time, etc.) will be lost.");
+    puts("  The current version only take care about file content. All attributes (owner, time, etc.) except permission bits will be lost.");
     puts("  This program only works for OverlayFS with only one lower layer.");
     puts("  It is recommended to have the OverlayFS unmounted before running this program.");
     exit(EXIT_SUCCESS);
@@ -74,6 +81,23 @@ bool directory_exists(const char *path) {
     struct stat sb;
     if (stat(path, &sb) != 0) { return false; }
     return (sb.st_mode & S_IFMT) == S_IFDIR;
+}
+
+bool check_xattr_trusted(const char *upper) { // checking CAP_SYS_ADMIN would work, but we don't want to install libcap
+    char tmp_path[PATH_MAX];
+    strcpy(tmp_path, upper);
+    strcat(tmp_path, "/.xattr_test_XXXXXX");
+    int tmp_file = mkstemp(tmp_path);
+    if (tmp_file < 0) { return false; }
+    bool can_write = false;
+    if (fsetxattr(tmp_file, "trusted.overlay.test", "t", 1)) {
+        fprintf(stderr, "The program cannot access trusted.* xattr. Try run again as root.\n");
+    } else {
+        can_write = true;
+    }
+    close(tmp_file);
+    unlink(tmp_path);
+    return can_write;
 }
 
 int main(int argc, char *argv[]) {

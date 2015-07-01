@@ -2,16 +2,21 @@
  * mv.h / mv.c
  *
  * function behave like "mv" command
- * if src and dst are in same filesystem, use "rename" directly
- * if they are in different filesystems, and dst exists, copy chunk by chunk to overwrite the existing inode
- * otherwise, copy chunk by chunk to create a new file
  */
 
 #ifndef OVERLAYFS_UTILS_MV_H
 #define OVERLAYFS_UTILS_MV_H
 
 #include <sys/stat.h>
+#include <stdbool.h>
 
-int mv(const char* src, const char* dst); // assume dst does not exist if status_dst is NULL. returns 0 on success
+/*
+ * returns 0 on success, -1 otherwise. errno will be available in such cases
+ * is_dir is true: only when src is a directory, and dst does not exist at all
+ * is_dir is false: only when src is a regular file, and dst is either a regular file or does not exist at all
+ */
+int mv_reg(const char *src, const char *dst);
+
+int mv_dir(const char *src, const char *dst, int file_limit);
 
 #endif //OVERLAYFS_UTILS_MV_H

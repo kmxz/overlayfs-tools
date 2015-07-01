@@ -9,9 +9,11 @@
 #include <errno.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <attr/xattr.h>
 #include "logic.h"
 
 #define WHITEOUT_DEV 0 // exactly the same as in linux/fs.h
+const char *ovl_opaque_xattr = "trusted.overlay.opaque"; // exact the same as in fs/overlayfs/super.c
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
@@ -20,13 +22,21 @@
 bool verbose;
 int file_limit; // number of file descriptors might be kept at the same time, limited by the os
 char lower[PATH_MAX]; // lower directory: it might be appended with other components of the path, so only take lower_dir_len for the root
-const char *upper_dir; // upper directory (it will not be copied, yet directly pointed to the string supplied)
+const char *upper_dir; // upper directory (it will not be copied, yet directly pointed to the string supplied) // FIXME: not used?!
 size_t lower_dir_len; // length of lower directory path
 size_t upper_dir_len; // length of upper directory path (will be frequently used, so we compute it ahead and store it)
 struct stat sb; // buffer for calling stat
 
 inline mode_t file_type(const struct stat *status) {
     return status->st_mode & S_IFMT;
+}
+
+int is_opaquedir(const char *path, bool *output) {
+    char val;
+    int res = getxattr(path, ovl_opaque_xattr, &val, 1);
+    if (res < 0) { return -1; }
+    *output = (res == 1 && val == 'y');
+    return 0;
 }
 
 bool is_whiteout(const struct stat *status) {

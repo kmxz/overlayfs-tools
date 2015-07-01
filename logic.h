@@ -1,8 +1,7 @@
 /*
  * logic.h / logic.c
  *
- * the logic for the three feature functions are written in logic.c
- * call set_globals to set the lowerdir and upperdir, then call the three feature functions
+ * the logic for the three feature functions
  */
 
 #ifndef OVERLAYFS_UTILS_LOGIC_H
@@ -10,12 +9,24 @@
 
 #include <stdbool.h>
 
+/*
+ * always call this to set up global variables, so the three feature functions below
+ */
 void set_globals(const char* lowerdir, const char* upperdir, bool is_verbose);
 
-int vaccum(); // returns 0 on success
+/*
+ * feature function. will take very long time to complete. returns 0 on success
+ */
+int vaccum();
 
-int diff(); // returns 0 on success
+/*
+ * feature function. will take very long time to complete. returns 0 on success
+ */
+int diff();
 
-int merge(); // returns 0 on success
+/*
+ * feature function. will take very long time to complete. returns 0 on success
+ */
+int merge();
 
 #endif //OVERLAYFS_UTILS_LOGIC_H
