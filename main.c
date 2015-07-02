@@ -90,7 +90,7 @@ bool check_xattr_trusted(const char *upper) { // checking CAP_SYS_ADMIN would wo
     int tmp_file = mkstemp(tmp_path);
     if (tmp_file < 0) { return false; }
     bool can_write = false;
-    if (fsetxattr(tmp_file, "trusted.overlay.test", "t", 1)) {
+    if (fsetxattr(tmp_file, "trusted.overlay.test", "t", 1, 0)) {
         fprintf(stderr, "The program cannot access trusted.* xattr. Try run again as root.\n");
     } else {
         can_write = true;

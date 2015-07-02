@@ -10,7 +10,7 @@ This program comes provides three tools:
 - **diff** - show the list of actually changed files (the difference between `overlay` and `lowerdir`). The added and modified files are basically the files in `upperdir`, excluding unnecessary `copy_up`s. The removed files will also be listed.
 - **merge** - merge down the changes from `upperdir` to `lowerdir`. Unlike [aubrsync](http://aufs.sourceforge.net/aufs2/brsync/README.txt) for AuFS which bypasses the union filesystem mechanism, overlayfs-utils emulates the OverlayFS logic, which will be far more efficient. After this operation, `upperdir` will be empty and `lowerdir` will be the same as original `overlay`. Of course, `lowerdir` must be writable.
 
-Prequisite and Building
+Prerequisite and Building
 --------
 
 To build it, you must have libattr headers installed. The package is usually named `libattr1-dev` or `libattr-devel`. For example,

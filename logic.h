@@ -4,8 +4,8 @@
  * the logic for the three feature functions
  */
 
-#ifndef OVERLAYFS_UTILS_LOGIC_H
-#define OVERLAYFS_UTILS_LOGIC_H
+#ifndef OVERLAYFS_TOOLS_LOGIC_H
+#define OVERLAYFS_TOOLS_LOGIC_H
 
 #include <stdbool.h>
 
@@ -29,4 +29,4 @@ int diff();
  */
 int merge();
 
-#endif //OVERLAYFS_UTILS_LOGIC_H
+#endif //OVERLAYFS_TOOLS_LOGIC_H
