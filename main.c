@@ -20,6 +20,7 @@
 #define STRLEN(s) (sizeof(s)/sizeof(s[0]))
 
 void print_help_and_exit() {
+    puts("See https://github.com/kmxz/overlayfs-tools/ for more information.");
     puts("Usage: %s command options");
     puts("Commands:");
     puts("  vacuum - remove duplicated files in upperdir where copy_up is done but the file is not actually modified");
@@ -29,10 +30,11 @@ void print_help_and_exit() {
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
+    puts("  -h, --help                 show this help text");
     puts("Warning:");
     puts("  Only works for regular files and directories. Do not use it on OverlayFS with device files, socket files, etc..");
     puts("  Hard links may be broken (i.e. resulting in duplicated independent files).");
-    puts("  The current version only take care about file content. All attributes (owner, time, etc.) except permission bits will be lost.");
+    puts("  File owner, group and permission bits will be preserved. File timestamps, attributes and extended attributes might be list. ");
     puts("  This program only works for OverlayFS with only one lower layer.");
     puts("  It is recommended to have the OverlayFS unmounted before running this program.");
     exit(EXIT_SUCCESS);
@@ -86,18 +88,16 @@ bool directory_exists(const char *path) {
 bool check_xattr_trusted(const char *upper) { // checking CAP_SYS_ADMIN would work, but we don't want to install libcap
     char tmp_path[PATH_MAX];
     strcpy(tmp_path, upper);
-    strcat(tmp_path, "/.xattr_test_XXXXXX");
-    int tmp_file = mkstemp(tmp_path);
+    strcat(tmp_path, "/.xattr_test_XXXXXX.tmp");
+    int tmp_file = mkstemps(tmp_path, 4);
     if (tmp_file < 0) { return false; }
-    bool can_write = false;
-    if (fsetxattr(tmp_file, "trusted.overlay.test", "t", 1, 0)) {
-        fprintf(stderr, "The program cannot access trusted.* xattr. Try run again as root.\n");
-    } else {
-        can_write = true;
-    }
+    if (fsetxattr(tmp_file, "trusted.overlay.test", "naive", 5, 0)) { return false; }
     close(tmp_file);
+    char verify_buffer[10];
+    if (getxattr(tmp_path, "trusted.overlay.test", verify_buffer, 10) != 5) { return false; }
+    if (strcmp(verify_buffer, "naive")) { return false; }
     unlink(tmp_path);
-    return can_write;
+    return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -152,6 +152,11 @@ int main(int argc, char *argv[]) {
     }
     if (!directory_exists(upper)) {
         fprintf(stderr, "Lower directory cannot be opened.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (!check_xattr_trusted(upper)) {
+        fprintf(stderr, "The program cannot write trusted.* xattr. Try run again as root.\n");
         exit(EXIT_FAILURE);
     }
 

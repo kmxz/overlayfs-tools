@@ -10,23 +10,18 @@
 #include <stdbool.h>
 
 /*
- * always call this to set up global variables, so the three feature functions below
+ * feature function. will take very long time to complete. returns 0 on success
  */
-void set_globals(const char* lowerdir, const char* upperdir, bool is_verbose);
+int vaccum(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* script_stream);
 
 /*
  * feature function. will take very long time to complete. returns 0 on success
  */
-int vaccum();
+int diff(const char* lowerdir, const char* upperdir, bool is_verbose);
 
 /*
  * feature function. will take very long time to complete. returns 0 on success
  */
-int diff();
-
-/*
- * feature function. will take very long time to complete. returns 0 on success
- */
-int merge();
+int merge(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* script_stream);
 
 #endif //OVERLAYFS_TOOLS_LOGIC_H
