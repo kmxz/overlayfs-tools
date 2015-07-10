@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <string.h>
 #include "sh.h"
 
 FILE* create_shell_script(char *tmp_path_buffer) {
@@ -19,9 +20,9 @@ FILE* create_shell_script(char *tmp_path_buffer) {
     return f;
 }
 
-int quote(const char* filename, FILE* output) {
+int quote(const char *filename, FILE *output) {
     if (fputc('\'', output) == EOF) { return -1; }
-    for (char *s = filename; *s != '\0'; s++) {
+    for (const char *s = filename; *s != '\0'; s++) {
         if (*s == '\'') {
             if (fprintf(output, "'\"'\"'") < 0) { return -1; }
         } else {
@@ -29,5 +30,21 @@ int quote(const char* filename, FILE* output) {
         }
     }
     if (fputc('\'', output) == EOF) { return -1; }
+    return 0;
+}
+
+int command(FILE *output, const char *command_format, ...) {
+    va_list arg;
+    va_start(arg, program);
+    for (size_t i = 0; command_format[i] != '\0'; i++) {
+        if (command_format[i] == '%') {
+            const char *s = va_arg(arg, char *);
+            if (quote(s, output) < 1) { return -1; }
+        } else {
+            if (fputc(command_format[i], output) == EOF) { return -1; }
+        }
+    }
+    va_end(arg);
+    if (fputs('\n', output) == EOF) { return -1; }
     return 0;
 }

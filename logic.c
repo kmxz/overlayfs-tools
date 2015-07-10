@@ -102,19 +102,6 @@ int symbolic_link_identical(const char *lower_path, const char *upper_path, bool
     return 0;
 }
 
-int is_directory_empty(const char *dir_path, bool* output) {
-    DIR *dir = opendir(dir_path);
-    struct dirent *direntb;
-    if (!dir) { return -1; }
-    while ((direntb = readdir(dir)) != NULL) {
-        if (strcmp(".", direntb->d_name) == 0) { continue; }
-        if (strcmp("..", direntb->d_name) == 0) { continue; }
-        *output = false; return 0;
-    }
-    *output = true;
-    return closedir(dir);
-}
-
 int vacuum_d(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
     bool opaque;
     if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
@@ -129,13 +116,13 @@ int vacuum_dp(const char *lower_path, const char* upper_path, const size_t lower
     if (lower_status == NULL) { return 0; } // lower does not exist
     if (file_type(lower_status) != S_IFDIR) { return 0; }
     if (!permission_identical(lower_status, upper_status)) { return 0; }
-    bool empty;
     bool opaque;
-    if (is_directory_empty(upper_path, &empty) < 0 || is_opaquedir(upper_path, &opaque) < 0) {
+    if (is_opaquedir(upper_path, &opaque) < 0) {
         return -1;
     }
-    if ((!empty) || opaque) { return 0; }
-    return (fprintf(script_stream, "rmdir ") || quote(upper_path, script_stream) || putc('\n', script_stream));
+    if (opaque) { return 0; }
+    // this directory might be empty if all children are deleted in previous commands. but we simply don't test whether it's that case
+    return command(script_stream, "rmdir --ignore-fail-on-non-empty %", upper_path);
 }
 
 int vacuum_f(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
@@ -147,7 +134,7 @@ int vacuum_f(const char *lower_path, const char* upper_path, const size_t lower_
         return -1;
     }
     if (!identical) { return 0; }
-    return (fprintf(script_stream, "rm ") || quote(upper_path, script_stream) || putc('\n', script_stream));
+    return command(script_stream, "rm %", upper_path);
 }
 
 int vacuum_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
@@ -159,7 +146,7 @@ int vacuum_sl(const char *lower_path, const char* upper_path, const size_t lower
         return -1;
     }
     if (!identical) { return 0; }
-    return (fprintf(script_stream, "rm ") || quote(upper_path, script_stream) || putc('\n', script_stream));
+    return command(script_stream, "rm %", upper_path);
 }
 
 int list_deleted_files(const char *path, size_t root_path_len) { // This WORKS with files and itself is listed. However, prefixs are WRONG!
@@ -277,19 +264,47 @@ int diff_whiteout(const char *lower_path, const char* upper_path, const size_t l
     if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
 }
 
-int merge_callback(const char *filename, const struct stat *status, int flag, struct FTW* ftwb) {
-    if (flag == FTW_NS || flag == FTW_DNR) { fprintf(stderr, "Failed to stat %s.\n", filename); return FTW_STOP; }
-    strcpy(&lower[lower_dir_len], &filename[upper_dir_len]); // now lower contains the full path of corresponding file
-    if (stat(lower, &sb) != 0) {
-        if (errno == ENONET) { // the corresponding lower file does not exist at all
-            printf("Moving added file to lowerdir: %s%s\n", &filename[upper_dir_len], TRAILING_SLASH(status));
-            // TODO
-        } else { // stat failed for some unknown reason
-            fprintf(stderr, "Failed to stat %s.\n", lower);
-            return FTW_STOP;
+int merge_d(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+    if (lower_status != NULL) {
+        if (file_type(lower_status) == S_IFDIR) {
+            bool opaque = false;
+            if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
+            if (opaque) {
+                if (command(script_stream, "rm -r %", lower_path) < 0) { return -1; };
+            } else {
+                if (!permission_identical(lower_status, upper_status)) {
+                    command(script_stream, "chmod --reference % %", upper_path, lower_path);
+                }
+                return 0; // children must be recursed, and directory itself does not need to be printed
+            }
+        } else { // other types of files
+            command(script_stream, "rm %", lower_path);
         }
     }
-    // TODO
+    *fts_instr = FTS_SKIP;
+    return command(script_stream, "mv % %", upper_path, lower_path);
+}
+
+int merge_dp(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+    // if children ARE visited, delete the directory
+    if (lower_status != NULL) {
+        if (file_type(lower_status) == S_IFDIR) {
+            bool opaque = false;
+            if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
+            if (!opaque) {
+                return command(script_stream, "rmdir %", upper_path);
+            }
+        }
+    }
+    return 0;
+}
+
+int merge_f_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+    return command(script_stream, "mv % %", upper_path, lower_path);
+}
+
+int merge_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+    return command(script_stream, "rm -r %", lower_path) || command(script_stream, "rm %", upper_path);
 }
 
 typedef int (*TRAVERSE_CALLBACK)(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr);
@@ -359,7 +374,10 @@ int vacuum(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* sc
     return traverse(lowerdir, upperdir, is_verbose, script_stream, vacuum_d, vacuum_dp, vacuum_f, vacuum_sl, NULL);
 }
 
-
 int diff(const char* lowerdir, const char* upperdir, bool is_verbose) {
     return traverse(lowerdir, upperdir, is_verbose, NULL, diff_d, NULL, diff_f, diff_sl, diff_whiteout);
+}
+
+int merge(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* script_stream) {
+    return traverse(lowerdir, upperdir, is_verbose, script_stream, merge_d, merge_dp, merge_f_sl, merge_f_sl, merge_whiteout);
 }

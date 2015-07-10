@@ -12,7 +12,7 @@
 /*
  * feature function. will take very long time to complete. returns 0 on success
  */
-int vaccum(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* script_stream);
+int vacuum(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* script_stream);
 
 /*
  * feature function. will take very long time to complete. returns 0 on success

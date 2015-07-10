@@ -2,6 +2,7 @@
 #define OVERLAYFS_TOOLS_SH_H
 
 FILE* create_shell_script(char *tmp_path_buffer);
-int quote(const char* filename, FILE* output);
+
+int command(FILE *output, const char *command_format, ...);
 
 #endif //OVERLAYFS_TOOLS_SH_H

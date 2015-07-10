@@ -161,7 +161,6 @@ int main(int argc, char *argv[]) {
     }
 
     if (optind == argc - 1) {
-        set_globals(lower, upper, verbose ? 2 : 1);
         if (strcmp(argv[optind], "vacuum") == 0) {
             check_mounted(lower, upper);
             // TODO
