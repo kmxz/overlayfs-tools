@@ -1,7 +1,8 @@
 #define _GNU_SOURCE
-#include <ftw.h>
+#include <signal.h> //DEBUG
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <linux/limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,7 +166,7 @@ int list_deleted_files(const char *path, size_t root_path_len) { // This WORKS w
                 printf("Removed: %s\n", &cur->fts_path[root_path_len]);
                 break;
             case FTS_DEFAULT:
-                fprintf(stderr, "File %s is not a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
+                fprintf(stderr, "DEBUG2 File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
                 return_val = -1;
                 break;
             default:
@@ -223,7 +224,7 @@ int diff_f(const char *lower_path, const char* upper_path, const size_t lower_ro
                 printf("Removed: %s\n", &lower_path[lower_root_len]);
                 break;
             default:
-                fprintf(stderr, "File %s is not a special file (device or pipe). We cannot handle that.\n", lower_path);
+                fprintf(stderr, "DEBUG3 File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
                 return -1;
         }
     }
@@ -250,7 +251,8 @@ int diff_sl(const char *lower_path, const char* upper_path, const size_t lower_r
                 }
                 return 0;
             default:
-                fprintf(stderr, "File %s is not a special file (device or pipe). We cannot handle that.\n", lower_path);
+                raise(2);//debug
+                fprintf(stderr, "DEBUG4 File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
                 return -1;
         }
     }
@@ -338,7 +340,7 @@ int traverse(const char *lower_root, const char *upper_root, bool verbose, FILE*
                     callback = callback_whiteout;
                 } else {
                     return_val = -1;
-                    fprintf(stderr, "File %s is not a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
+                    fprintf(stderr, "DEBUG1 File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
                 }
                 break;
             default:
@@ -351,7 +353,7 @@ int traverse(const char *lower_root, const char *upper_root, bool verbose, FILE*
             bool lower_exist = true;
             strcpy(&lower_path[lower_root_len], &(cur->fts_path[upper_root_len]));
             if (stat(lower_path, &lower_status) != 0) {
-                if (errno == ENONET) { // the corresponding lower file does not exist at all
+                if (errno == ENOENT) { // the corresponding lower file does not exist at all
                     lower_exist = false;
                 } else { // stat failed for some unknown reason
                     fprintf(stderr, "Failed to stat %s.\n", lower_path);

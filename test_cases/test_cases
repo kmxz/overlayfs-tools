@@ -1,3 +1,10 @@
+lowerdir, upperdir and the expected overlay are in the tarballs
+the description of the test cases are listed below:
+
+file name                   lowerdir upperdir
+                            (D: directory, F: file, SL: symlink, W: whiteout)
+                            (number for permission bits, * for modified content)
+
 removed_tests               D, 755   D, 755
   removed_dir               D, 755   W
     subdir                  D, 755

@@ -19,27 +19,21 @@
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
 
-#define STRLEN(s) (sizeof(s)/sizeof(s[0]))
-
-void print_help_and_exit() {
-    puts("See https://github.com/kmxz/overlayfs-tools/ for more information.");
+void print_help() {
     puts("Usage: %s command options");
+    puts("");
     puts("Commands:");
     puts("  vacuum - remove duplicated files in upperdir where copy_up is done but the file is not actually modified");
     puts("  diff   - show the list of actually changed files");
     puts("  merge  - merge all changes from upperdir to lowerdir, and clear upperdir");
+    puts("");
     puts("Options:");
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
     puts("  -h, --help                 show this help text");
-    puts("Warning:");
-    puts("  Only works for regular files and directories. Do not use it on OverlayFS with device files, socket files, etc..");
-    puts("  Hard links may be broken (i.e. resulting in duplicated independent files).");
-    puts("  File owner, group and permission bits will be preserved. File timestamps, attributes and extended attributes might be list. ");
-    puts("  This program only works for OverlayFS with only one lower layer.");
-    puts("  It is recommended to have the OverlayFS unmounted before running this program.");
-    exit(EXIT_SUCCESS);
+    puts("");
+    puts("See https://github.com/kmxz/overlayfs-tools/ for warnings and more information.");
 }
 
 bool starts_with(const char *haystack, const char* needle) {
@@ -47,7 +41,7 @@ bool starts_with(const char *haystack, const char* needle) {
 }
 
 bool is_mounted(const char *lower, const char *upper) {
-    FILE* f = fopen("/proc/mounts", "r");
+    FILE *f = fopen("/proc/mounts", "r");
     if (!f) {
         fprintf(stderr, "Cannot read /proc/mounts to test whether OverlayFS is mounted.\n");
         return true;
@@ -58,11 +52,17 @@ bool is_mounted(const char *lower, const char *upper) {
             continue;
         }
         if (strlen(buf) == STRING_BUFFER_SIZE) {
-            fprintf(stderr, "OverlayFS line in /proc/mounts too long.\n");
+            fprintf(stderr, "OverlayFS line in /proc/mounts is too long.\n");
             return true;
         }
-        char* m_lower = &(strstr(buf, "lowerdir=")[STRLEN("lowerdir=")]);
-        char* m_upper = &(strstr(buf, "upperdir=")[STRLEN("upperdir=")]);
+        char *m_lower = strstr(buf, "lowerdir=");
+        char *m_upper = strstr(buf, "upperdir=");
+        if (m_lower == NULL || m_upper == NULL) {
+            fprintf(stderr, "Cannot extract information from OverlayFS line in /proc/mounts.\n");
+            return true;
+        }
+        m_lower = &(m_lower[strlen("lowerdir=")]);
+        m_upper = &(m_upper[strlen("upperdir=")]);
         if (!(strncmp(lower, m_lower, strlen(lower)) && strncmp(upper, m_upper, strlen(upper)))) {
             printf("The OverlayFS involved is still mounted.\n");
             return true;
@@ -71,14 +71,15 @@ bool is_mounted(const char *lower, const char *upper) {
     return false;
 }
 
-void check_mounted(const char *lower, const char *upper) {
+bool check_mounted(const char *lower, const char *upper) {
     if (is_mounted(lower, upper)) {
         printf("It is strongly recommended to unmount OverlayFS first. Still continue (not recommended)?: \n");
         int r = getchar();
         if (r != 'Y' && r != 'y') {
-            exit(EXIT_FAILURE);
+            return true;
         }
     }
+    return false;
 }
 
 bool directory_exists(const char *path) {
@@ -87,25 +88,30 @@ bool directory_exists(const char *path) {
     return (sb.st_mode & S_IFMT) == S_IFDIR;
 }
 
-bool check_xattr_trusted(const char *upper) { // checking CAP_SYS_ADMIN would work, but we don't want to install libcap
+bool real_check_xattr_trusted(const char *tmp_path, int tmp_file) {
+    int ret = fsetxattr(tmp_file, "trusted.overlay.test", "naive", 5, 0);
+    close(tmp_file);
+    if (ret) { return false; }
+    char verify_buffer[10];
+    if (getxattr(tmp_path, "trusted.overlay.test", verify_buffer, 10) != 5) { return false; }
+    return !strncmp(verify_buffer, "naive", 5);
+}
+
+bool check_xattr_trusted(const char *upper) {
     char tmp_path[PATH_MAX];
     strcpy(tmp_path, upper);
     strcat(tmp_path, "/.xattr_test_XXXXXX.tmp");
     int tmp_file = mkstemps(tmp_path, 4);
     if (tmp_file < 0) { return false; }
-    if (fsetxattr(tmp_file, "trusted.overlay.test", "naive", 5, 0)) { return false; }
-    close(tmp_file);
-    char verify_buffer[10];
-    if (getxattr(tmp_path, "trusted.overlay.test", verify_buffer, 10) != 5) { return false; }
-    if (strcmp(verify_buffer, "naive")) { return false; }
+    bool ret = real_check_xattr_trusted(tmp_path, tmp_file);
     unlink(tmp_path);
-    return true;
+    return ret;
 }
 
 int main(int argc, char *argv[]) {
 
-    char lower[PATH_MAX] = "";
-    char upper[PATH_MAX] = "";
+    char *lower = NULL;
+    char *upper = NULL;
     bool verbose = false;
 
     static struct option long_options[] = {
@@ -116,80 +122,89 @@ int main(int argc, char *argv[]) {
         { 0,          0,                 0,  0  }
     };
 
-    int opt = 0;
+    int out = -1;
 
+    int opt = 0;
     int long_index = 0;
     while ((opt = getopt_long_only(argc, argv, "", long_options, &long_index)) != -1) {
         switch (opt) {
-            case 'l' :
-                realpath(optarg, lower);
+            case 'l':
+                if (lower != NULL) { free(lower); }
+                lower = realpath(optarg, NULL);
                 break;
-            case 'u' :
-                realpath(optarg, upper);
+            case 'u':
+                if (upper != NULL) { free(upper); }
+                upper = realpath(optarg, NULL);
                 break;
             case 'h':
-                print_help_and_exit();
-                break;
+                print_help();
+                out = 0;
+                goto before_exit;
             case 'v':
                 verbose = true;
                 break;
             default:
                 fprintf(stderr, "Option %c is not supported.", opt);
-                fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-                exit(EXIT_FAILURE);
+                goto see_help;
         }
     }
 
     if (lower[0] == '\0') {
         fprintf(stderr, "Lower directory not specified.\n");
-        exit(EXIT_FAILURE);
+        goto see_help;
     }
     if (!directory_exists(lower)) {
         fprintf(stderr, "Lower directory cannot be opened.\n");
-        exit(EXIT_FAILURE);
+        goto see_help;
     }
     if (upper[0] == '\0') {
         fprintf(stderr, "Upper directory not specified.\n");
-        exit(EXIT_FAILURE);
+        goto see_help;
     }
     if (!directory_exists(upper)) {
         fprintf(stderr, "Lower directory cannot be opened.\n");
-        exit(EXIT_FAILURE);
+        goto see_help;
     }
-
     if (!check_xattr_trusted(upper)) {
         fprintf(stderr, "The program cannot write trusted.* xattr. Try run again as root.\n");
-        exit(EXIT_FAILURE);
+        goto see_help;
+    }
+    if (check_mounted(lower, upper)) {
+        goto before_exit;
     }
 
+    char filename_template[] = "overylay-toolsXXXXXX.sh";
+    FILE *script = NULL;
+
     if (optind == argc - 1) {
-        check_mounted(lower, upper);
         if (strcmp(argv[optind], "diff") == 0) {
-            return diff(lower, upper, verbose) ? EXIT_FAILURE : EXIT_SUCCESS;
-        }
-        char filename_template[] = "overylay-toolsXXXXXX.sh";
-        FILE* script = create_shell_script(filename_template);
-        int out;
-        if (strcmp(argv[optind], "vacuum") == 0) {
+            out = diff(lower, upper, verbose);
+        } else if (strcmp(argv[optind], "vacuum") == 0) {
+            script = create_shell_script(filename_template);
             out = vacuum(lower, upper, verbose, script);
         } else if (strcmp(argv[optind], "merge") == 0) {
+            script = create_shell_script(filename_template);
             out = merge(lower, upper, verbose, script);
         } else {
-            fclose(script);
             fprintf(stderr, "Action not supported.");
-            fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-            exit(EXIT_FAILURE);
+            goto see_help;
         }
-        fclose(script);
+        if (script != NULL) {
+            fclose(script);
+        }
         if (out) {
-            return EXIT_FAILURE;
-        } else {
-            return EXIT_SUCCESS;
+            fprintf(stderr, "Action aborted due to fatal error.\n");
         }
+        goto before_exit;
     }
 
     fprintf(stderr, "Please specify one action.");
+
+see_help:
     fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-    exit(EXIT_FAILURE);
+before_exit:
+    if (upper != NULL) { free(upper); }
+    if (lower != NULL) { free(lower); }
+    exit(out ? EXIT_FAILURE : EXIT_SUCCESS);
 
 }
