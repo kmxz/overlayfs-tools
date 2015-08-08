@@ -84,7 +84,7 @@ bool check_mounted(const char *lower, const char *upper) {
 
 bool directory_exists(const char *path) {
     struct stat sb;
-    if (stat(path, &sb) != 0) { return false; }
+    if (lstat(path, &sb) != 0) { return false; }
     return (sb.st_mode & S_IFMT) == S_IFDIR;
 }
 
@@ -110,8 +110,8 @@ bool check_xattr_trusted(const char *upper) {
 
 int main(int argc, char *argv[]) {
 
-    char *lower = NULL;
-    char *upper = NULL;
+    char lower[PATH_MAX] = "";
+    char upper[PATH_MAX] = "";
     bool verbose = false;
 
     static struct option long_options[] = {
@@ -122,24 +122,19 @@ int main(int argc, char *argv[]) {
         { 0,          0,                 0,  0  }
     };
 
-    int out = -1;
-
     int opt = 0;
     int long_index = 0;
     while ((opt = getopt_long_only(argc, argv, "", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
-                if (lower != NULL) { free(lower); }
-                lower = realpath(optarg, NULL);
+                if (realpath(optarg, lower) == NULL) { lower[0] = '\0'; }
                 break;
             case 'u':
-                if (upper != NULL) { free(upper); }
-                upper = realpath(optarg, NULL);
+                if (realpath(optarg, upper) == NULL) { upper[0] = '\0'; }
                 break;
             case 'h':
                 print_help();
-                out = 0;
-                goto before_exit;
+                return EXIT_SUCCESS;
             case 'v':
                 verbose = true;
                 break;
@@ -170,13 +165,14 @@ int main(int argc, char *argv[]) {
         goto see_help;
     }
     if (check_mounted(lower, upper)) {
-        goto before_exit;
+        return EXIT_FAILURE;
     }
 
     char filename_template[] = "overylay-toolsXXXXXX.sh";
     FILE *script = NULL;
 
     if (optind == argc - 1) {
+        int out;
         if (strcmp(argv[optind], "diff") == 0) {
             out = diff(lower, upper, verbose);
         } else if (strcmp(argv[optind], "vacuum") == 0) {
@@ -194,17 +190,15 @@ int main(int argc, char *argv[]) {
         }
         if (out) {
             fprintf(stderr, "Action aborted due to fatal error.\n");
+            return EXIT_FAILURE;
         }
-        goto before_exit;
+        return EXIT_SUCCESS;
     }
 
     fprintf(stderr, "Please specify one action.");
 
 see_help:
     fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-before_exit:
-    if (upper != NULL) { free(upper); }
-    if (lower != NULL) { free(lower); }
-    exit(out ? EXIT_FAILURE : EXIT_SUCCESS);
+    return EXIT_FAILURE;
 
 }

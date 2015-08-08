@@ -1,5 +1,4 @@
 #define _GNU_SOURCE
-#include <signal.h> //DEBUG
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -148,7 +147,11 @@ int vacuum_sl(const char *lower_path, const char* upper_path, const size_t lower
     return command(script_stream, "rm %", upper_path);
 }
 
-int list_deleted_files(const char *path, size_t root_path_len) { // This WORKS with files and itself is listed. However, prefixs are WRONG!
+int list_deleted_files(const char *path, size_t root_path_len, bool verbose) { // This WORKS with files and itself is listed. However, prefixs are WRONG!
+    if (!verbose) {
+        printf("Removed: %s/\n", &path[root_path_len]);
+        return 0;
+    }
     FTSENT *cur;
     char *paths[2] = {(char *) path, NULL };
     FTS *ftsp = fts_open(paths, FTS_NOCHDIR | FTS_PHYSICAL, NULL);
@@ -166,7 +169,7 @@ int list_deleted_files(const char *path, size_t root_path_len) { // This WORKS w
                 printf("Removed: %s\n", &cur->fts_path[root_path_len]);
                 break;
             case FTS_DEFAULT:
-                fprintf(stderr, "DEBUG2 File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
+                fprintf(stderr, "File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
                 return_val = -1;
                 break;
             default:
@@ -184,10 +187,7 @@ int diff_d(const char *lower_path, const char* upper_path, const size_t lower_ro
             bool opaque = false;
             if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
             if (opaque) {
-                if (verbose) {
-                    if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
-                }
-                printf("Removed: %s/\n", &lower_path[lower_root_len]);
+                if (list_deleted_files(lower_path, lower_root_len, verbose) < 0) { return -1; }
             } else {
                 if (!permission_identical(lower_status, upper_status)) {
                     printf("Modified: %s/\n", &lower_path[lower_root_len]);
@@ -210,7 +210,7 @@ int diff_f(const char *lower_path, const char* upper_path, const size_t lower_ro
     if (lower_status != NULL) {
         switch (file_type(lower_status)) {
             case S_IFDIR:
-                if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
+                if (list_deleted_files(lower_path, lower_root_len, verbose) < 0) { return -1; }
                 break;
             case S_IFREG:
                 if (regular_file_identical(lower_path, lower_status, upper_path, upper_status, &identical) < 0) {
@@ -224,7 +224,7 @@ int diff_f(const char *lower_path, const char* upper_path, const size_t lower_ro
                 printf("Removed: %s\n", &lower_path[lower_root_len]);
                 break;
             default:
-                fprintf(stderr, "DEBUG3 File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
+                fprintf(stderr, "File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
                 return -1;
         }
     }
@@ -237,7 +237,7 @@ int diff_sl(const char *lower_path, const char* upper_path, const size_t lower_r
     if (lower_status != NULL) {
         switch (file_type(lower_status)) {
             case S_IFDIR:
-                if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
+                if (list_deleted_files(lower_path, lower_root_len, verbose) < 0) { return -1; }
                 break;
             case S_IFREG:
                 printf("Removed: %s\n", &lower_path[lower_root_len]);
@@ -251,8 +251,7 @@ int diff_sl(const char *lower_path, const char* upper_path, const size_t lower_r
                 }
                 return 0;
             default:
-                raise(2);//debug
-                fprintf(stderr, "DEBUG4 File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
+                fprintf(stderr, "File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
                 return -1;
         }
     }
@@ -261,7 +260,7 @@ int diff_sl(const char *lower_path, const char* upper_path, const size_t lower_r
 }
 
 int diff_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
-    if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
+    if (list_deleted_files(lower_path, lower_root_len, verbose) < 0) { return -1; }
     return 0;
 }
 
@@ -340,7 +339,7 @@ int traverse(const char *lower_root, const char *upper_root, bool verbose, FILE*
                     callback = callback_whiteout;
                 } else {
                     return_val = -1;
-                    fprintf(stderr, "DEBUG1 File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
+                    fprintf(stderr, "File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
                 }
                 break;
             default:
@@ -352,8 +351,8 @@ int traverse(const char *lower_root, const char *upper_root, bool verbose, FILE*
             struct stat lower_status;
             bool lower_exist = true;
             strcpy(&lower_path[lower_root_len], &(cur->fts_path[upper_root_len]));
-            if (stat(lower_path, &lower_status) != 0) {
-                if (errno == ENOENT) { // the corresponding lower file does not exist at all
+            if (lstat(lower_path, &lower_status) != 0) {
+                if (errno == ENOENT || errno == ENOTDIR) { // the corresponding lower file (or its ancestor) does not exist at all
                     lower_exist = false;
                 } else { // stat failed for some unknown reason
                     fprintf(stderr, "Failed to stat %s.\n", lower_path);
