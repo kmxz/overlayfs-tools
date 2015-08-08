@@ -3,7 +3,7 @@
  *
  * the command line user interface
  */
-
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,9 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <attr/xattr.h>
+#include <linux/stat.h>
 #include "logic.h"
+#include "sh.h"
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
 
@@ -132,8 +134,8 @@ int main(int argc, char *argv[]) {
                 verbose = true;
                 break;
             default:
-                printf("Option %c is not supported. Use \n", opt);
-                printf("Try '%s --help' for more information.\n", argv[0]);
+                fprintf(stderr, "Option %c is not supported.", opt);
+                fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
@@ -161,21 +163,33 @@ int main(int argc, char *argv[]) {
     }
 
     if (optind == argc - 1) {
-        if (strcmp(argv[optind], "vacuum") == 0) {
-            check_mounted(lower, upper);
-            // TODO
-        } else if (strcmp(argv[optind], "diff") == 0) {
-            // TODO
-        } else if (strcmp(argv[optind], "merge") == 0) {
-            check_mounted(lower, upper);
-            // TODO
+        check_mounted(lower, upper);
+        if (strcmp(argv[optind], "diff") == 0) {
+            return diff(lower, upper, verbose) ? EXIT_FAILURE : EXIT_SUCCESS;
         }
-    } else {
-        puts("Please specify one action.");
-        printf("Try '%s --help' for more information.\n", argv[0]);
-        exit(EXIT_FAILURE);
+        char filename_template[] = "overylay-toolsXXXXXX.sh";
+        FILE* script = create_shell_script(filename_template);
+        int out;
+        if (strcmp(argv[optind], "vacuum") == 0) {
+            out = vacuum(lower, upper, verbose, script);
+        } else if (strcmp(argv[optind], "merge") == 0) {
+            out = merge(lower, upper, verbose, script);
+        } else {
+            fclose(script);
+            fprintf(stderr, "Action not supported.");
+            fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+        fclose(script);
+        if (out) {
+            return EXIT_FAILURE;
+        } else {
+            return EXIT_SUCCESS;
+        }
     }
 
-    return EXIT_SUCCESS;
+    fprintf(stderr, "Please specify one action.");
+    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+    exit(EXIT_FAILURE);
 
 }

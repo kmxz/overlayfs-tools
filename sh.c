@@ -1,9 +1,9 @@
+#define _GNU_SOURCE
+#include <stdarg.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <string.h>
 #include "sh.h"
 
 FILE* create_shell_script(char *tmp_path_buffer) {
@@ -35,7 +35,7 @@ int quote(const char *filename, FILE *output) {
 
 int command(FILE *output, const char *command_format, ...) {
     va_list arg;
-    va_start(arg, program);
+    va_start(arg, command_format);
     for (size_t i = 0; command_format[i] != '\0'; i++) {
         if (command_format[i] == '%') {
             const char *s = va_arg(arg, char *);
@@ -45,6 +45,6 @@ int command(FILE *output, const char *command_format, ...) {
         }
     }
     va_end(arg);
-    if (fputs('\n', output) == EOF) { return -1; }
+    if (fputc('\n', output) == EOF) { return -1; }
     return 0;
 }

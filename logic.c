@@ -7,7 +7,6 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <dirent.h>
 #include <attr/xattr.h>
 #include <fts.h>
 #include "logic.h"
@@ -20,8 +19,16 @@ const char *ovl_opaque_xattr = "trusted.overlay.opaque"; // exact the same as in
 
 #define TRAILING_SLASH(status) ((file_type(status) == S_IFDIR) ? "/" : "")
 
-inline mode_t file_type(const struct stat *status) {
+static inline mode_t file_type(const struct stat *status) {
     return status->st_mode & S_IFMT;
+}
+
+static inline bool is_whiteout(const struct stat *status) {
+    return (file_type(status) == S_IFCHR) && (status->st_rdev == WHITEOUT_DEV);
+}
+
+static inline mode_t permission_bits(const struct stat *status) { // not used yet. I haven't decided how to treat permission bit changes
+    return status->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 }
 
 int is_opaquedir(const char *path, bool *output) {
@@ -32,14 +39,6 @@ int is_opaquedir(const char *path, bool *output) {
     }
     *output = (res == 1 && val == 'y');
     return 0;
-}
-
-inline bool is_whiteout(const struct stat *status) {
-    return (file_type(status) == S_IFCHR) && (status->st_rdev == WHITEOUT_DEV);
-}
-
-inline mode_t permission_bits(const struct stat *status) { // not used yet. I haven't decided how to treat permission bit changes
-    return status->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 }
 
 bool permission_identical(const struct stat *lower_status, const struct stat *upper_status) {
@@ -105,11 +104,10 @@ int symbolic_link_identical(const char *lower_path, const char *upper_path, bool
 int vacuum_d(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
     bool opaque;
     if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
-    if (opaque) {
+    if (opaque) { // TODO: sometimes removing opaque directory (and combine with lower directory) might be better
         *fts_instr = FTS_SKIP;
     }
-    // TODO: Wait! sometimes removing opaque directory (and combine with lower directory might be better)
-    // TODO: let's see in which circumstances will opaque directory show up
+    return 0;
 }
 
 int vacuum_dp(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
@@ -262,6 +260,7 @@ int diff_sl(const char *lower_path, const char* upper_path, const size_t lower_r
 
 int diff_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
     if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
+    return 0;
 }
 
 int merge_d(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {

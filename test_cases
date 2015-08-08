@@ -1,0 +1,64 @@
+removed_tests               D, 755   D, 755
+  removed_dir               D, 755   W
+    subdir                  D, 755
+      a.txt                 F, 755
+    b.txt                   F, 755
+  empty_removed_dir         D, 755   W
+  replaced by a file        D, 755   F, 600
+    a.txt                   F, 644
+    this_was_a_subdir       D, 755
+      c.txt                 F, 400
+  replaced_by_symlink       D, 700  SL, -
+    another_subdir          D, 700
+  replaced_by_opaque        D, 700  DO, 755
+    origin\subdir           D, 755
+      dir                   D, 755
+        file                F, 644
+      a_file                F, 755
+    new_subdir                       D, 755
+    new_file                        SL, 400
+normal_merged_dir           D, 755   D, 755
+    a_file                  F, 644   F, 644
+    only_old                F, 644   W
+    only_new                        SL, -
+    changed" "file          F, 644   F, 644*
+    changed_symlink        SL, -    SL, -  *
+    unchanged'symlink      SL, -
+    trivial_dir             D, 755   D, 755
+      a_file                F, 644   F, 644
+      a\link               SL, -    SL, -
+    more_test               D, 755   D, 755
+      by_opaque             D, 755  DO, 755
+        a_file              F, 644
+        another_file        F, 644
+        third_file          F, 755
+      file_to_link          F, 644  SL, -
+      link_to_file         SL, -     F, 755
+modified_dir                D, 755   D, 755
+  sub_1                     D, 755   D, 755
+    permission              D, 755   D, 700
+      changed$file          F, 755   F, 755*
+      dir                   D, 700   D, 755
+    sub_2                   D, 777   D, 777
+      added_file                     F, 400
+      sub_3                 D, 700   D, 700
+        file                F, 644   F, 644*
+        sub_4               D, 755   D, 755
+          removed           D, 700   W
+          added                      D, 700
+  created                            D, 755
+    sub_1                            D, 755
+      sub"2                          D, 755
+permission                  D, 755   D, 755
+  file                      F, 400   F, 600
+  changed_file              F, 400   F, 644*
+  path_1                    D, 700   D, 500
+    another_path            D, 700
+  path_2                    D, 755   D, 700
+    another path            D, 700   D, 755
+      a_file                F, 400   F, 400
+deleted_files               D, 755   D, 755
+  file_by_dir               F, 644   D, 755
+  link-by-dir              SL, -     D, 755
+    sub_dir                          D, 755
+  dir_whiteout              D, 755   W
