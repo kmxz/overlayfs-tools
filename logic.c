@@ -45,9 +45,25 @@ bool permission_identical(const struct stat *lower_status, const struct stat *up
     return (permission_bits(lower_status) == permission_bits(upper_status)) && (lower_status->st_uid == upper_status->st_uid) && (lower_status->st_gid == upper_status->st_gid);
 }
 
+int read_chunk(int fd, char *buf, int len) {
+    ssize_t ret;
+    ssize_t remain = len;
+    while (remain > 0 && (ret = read(fd, buf, remain)) != 0) {
+        if (ret == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        remain -= ret;
+        buf += ret;
+    }
+    return len - remain;
+}
+
 int regular_file_identical(const char *lower_path, const struct stat *lower_status, const char *upper_path, const struct stat *upper_status, bool *output) {
     size_t blksize = (size_t) MIN(lower_status->st_blksize, upper_status->st_blksize);
-    if (lower_status->st_size != upper_status->st_size) {
+    if (lower_status->st_size != upper_status->st_size) { // different sizes
         *output = false;
         return 0;
     }
@@ -65,8 +81,8 @@ int regular_file_identical(const char *lower_path, const struct stat *lower_stat
     }
     ssize_t read_lower; ssize_t read_upper;
     do { // we can assume one will not reach EOF earlier than the other, as the file sizes are checked to be the same earlier
-        read_lower = read(lower_file, lower_buffer, blksize);
-        read_upper = read(upper_file, upper_buffer, blksize);
+        read_lower = read_chunk(lower_file, lower_buffer, blksize);
+        read_upper = read_chunk(upper_file, upper_buffer, blksize);
         if (read_lower < 0) {
             fprintf(stderr, "Error occured when reading file %s.\n", lower_path);
             return -1;
@@ -75,7 +91,11 @@ int regular_file_identical(const char *lower_path, const struct stat *lower_stat
             fprintf(stderr, "Error occured when reading file %s.\n", upper_path);
             return -1;
         }
-        if (memcmp(lower_buffer, upper_buffer, blksize)) { *output = false; return 0; } // the output is by default false, but we still set it for ease of reading
+        if (read_upper != read_lower) { // this should not happen as we've checked the sizes
+            fprintf(stderr, "Unexpected size difference: %s.\n", upper_path);
+            return -1;
+        }
+        if (memcmp(lower_buffer, upper_buffer, read_upper)) { *output = false; return 0; } // the output is by default false, but we still set it for ease of reading
     } while (read_lower || read_upper);
     *output = true; // now we can say they are identical
     if (close(lower_file) || close(upper_file)) { return -1; }
@@ -260,7 +280,13 @@ int diff_sl(const char *lower_path, const char* upper_path, const size_t lower_r
 }
 
 int diff_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
-    if (list_deleted_files(lower_path, lower_root_len, verbose) < 0) { return -1; }
+    if (lower_status != NULL) {
+        if (file_type(lower_status) == S_IFDIR) {
+            if (list_deleted_files(lower_path, lower_root_len, verbose) < 0) { return -1; }
+        } else {
+            printf("Removed: %s\n", &lower_path[lower_root_len]);
+        }
+    } // else: whiteouting a nonexistent file? must be an error. but we ignore that :)
     return 0;
 }
 

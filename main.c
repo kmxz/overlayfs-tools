@@ -162,17 +162,16 @@ int main(int argc, char *argv[]) {
     }
     if (!check_xattr_trusted(upper)) {
         fprintf(stderr, "The program cannot write trusted.* xattr. Try run again as root.\n");
-        goto see_help;
+        return EXIT_FAILURE;
     }
     if (check_mounted(lower, upper)) {
         return EXIT_FAILURE;
     }
 
-    char filename_template[] = "overylay-toolsXXXXXX.sh";
-    FILE *script = NULL;
-
     if (optind == argc - 1) {
         int out;
+        char filename_template[] = "overylay-toolsXXXXXX.sh";
+        FILE *script = NULL;
         if (strcmp(argv[optind], "diff") == 0) {
             out = diff(lower, upper, verbose);
         } else if (strcmp(argv[optind], "vacuum") == 0) {
@@ -182,7 +181,7 @@ int main(int argc, char *argv[]) {
             script = create_shell_script(filename_template);
             out = merge(lower, upper, verbose, script);
         } else {
-            fprintf(stderr, "Action not supported.");
+            fprintf(stderr, "Action not supported.\n");
             goto see_help;
         }
         if (script != NULL) {
@@ -195,7 +194,7 @@ int main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
-    fprintf(stderr, "Please specify one action.");
+    fprintf(stderr, "Please specify one action.\n");
 
 see_help:
     fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
