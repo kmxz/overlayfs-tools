@@ -303,21 +303,20 @@ int merge_d(const char *lower_path, const char* upper_path, const size_t lower_r
                 }
                 return 0; // children must be recursed, and directory itself does not need to be printed
             }
-        } else { // other types of files
+        } else {
             command(script_stream, "rm %", lower_path);
         }
     }
     *fts_instr = FTS_SKIP;
-    return command(script_stream, "mv % %", upper_path, lower_path);
+    return command(script_stream, "mv -T % %", upper_path, lower_path);
 }
 
 int merge_dp(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
-    // if children ARE visited, delete the directory
     if (lower_status != NULL) {
         if (file_type(lower_status) == S_IFDIR) {
             bool opaque = false;
             if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
-            if (!opaque) {
+            if (!opaque) { // delete the directory: it should be empty already
                 return command(script_stream, "rmdir %", upper_path);
             }
         }
@@ -326,7 +325,7 @@ int merge_dp(const char *lower_path, const char* upper_path, const size_t lower_
 }
 
 int merge_f_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
-    return command(script_stream, "mv % %", upper_path, lower_path);
+    return command(script_stream, "rm -rf %", lower_path) || command(script_stream, "mv -T % %", upper_path, lower_path);
 }
 
 int merge_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {

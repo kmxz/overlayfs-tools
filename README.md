@@ -1,5 +1,3 @@
-**This project is unfinished and NOT usable yet.**
-
 overlayfs-tools
 ========
 
