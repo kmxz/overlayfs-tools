@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
                 verbose = true;
                 break;
             default:
-                fprintf(stderr, "Option %c is not supported.", opt);
+                fprintf(stderr, "Option %c is not supported.\n", opt);
                 goto see_help;
         }
     }
@@ -176,11 +176,11 @@ int main(int argc, char *argv[]) {
             out = diff(lower, upper, verbose);
         } else if (strcmp(argv[optind], "vacuum") == 0) {
             script = create_shell_script(filename_template);
-            if (script == NULL) { fprintf(stderr, "Script file cannot be created."); return EXIT_FAILURE; }
+            if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
             out = vacuum(lower, upper, verbose, script);
         } else if (strcmp(argv[optind], "merge") == 0) {
             script = create_shell_script(filename_template);
-            if (script == NULL) { fprintf(stderr, "Script file cannot be created."); return EXIT_FAILURE; }
+            if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
             out = merge(lower, upper, verbose, script);
         } else {
             fprintf(stderr, "Action not supported.\n");
