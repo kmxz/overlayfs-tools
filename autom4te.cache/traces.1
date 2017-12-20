@@ -8,6 +8,14 @@ m4trace:/usr/share/aclocal-1.15/amversion.m4:33: -1- AC_DEFUN([AM_SET_CURRENT_AU
 m4_ifndef([AC_AUTOCONF_VERSION],
   [m4_copy([m4_PACKAGE_VERSION], [AC_AUTOCONF_VERSION])])dnl
 _AM_AUTOCONF_VERSION(m4_defn([AC_AUTOCONF_VERSION]))])
+m4trace:/usr/share/aclocal-1.15/as.m4:11: -1- AC_DEFUN([AM_PROG_AS], [# By default we simply use the C compiler to build assembly code.
+AC_REQUIRE([AC_PROG_CC])
+test "${CCAS+set}" = set || CCAS=$CC
+test "${CCASFLAGS+set}" = set || CCASFLAGS=$CFLAGS
+AC_ARG_VAR([CCAS],      [assembler compiler command (defaults to CC)])
+AC_ARG_VAR([CCASFLAGS], [assembler compiler flags (defaults to CFLAGS)])
+_AM_IF_OPTION([no-dependencies],, [_AM_DEPENDENCIES([CCAS])])dnl
+])
 m4trace:/usr/share/aclocal-1.15/auxdir.m4:47: -1- AC_DEFUN([AM_AUX_DIR_EXPAND], [AC_REQUIRE([AC_CONFIG_AUX_DIR_DEFAULT])dnl
 # Expand $ac_aux_dir to an absolute path.
 am_aux_dir=`cd "$ac_aux_dir" && pwd`
@@ -235,6 +243,14 @@ m4trace:/usr/share/aclocal-1.15/depout.m4:12: -1- AC_DEFUN([_AM_OUTPUT_DEPENDENC
 m4trace:/usr/share/aclocal-1.15/depout.m4:71: -1- AC_DEFUN([AM_OUTPUT_DEPENDENCY_COMMANDS], [AC_CONFIG_COMMANDS([depfiles],
      [test x"$AMDEP_TRUE" != x"" || _AM_OUTPUT_DEPENDENCY_COMMANDS],
      [AMDEP_TRUE="$AMDEP_TRUE" ac_aux_dir="$ac_aux_dir"])
+])
+m4trace:/usr/share/aclocal-1.15/gcj.m4:10: -1- AC_DEFUN([AM_PROG_GCJ], [AC_CHECK_TOOLS([GCJ], [gcj], [gcj])
+test -z "$GCJ" && AC_MSG_ERROR([no acceptable gcj found in \$PATH])
+if test "x${GCJFLAGS-unset}" = xunset; then
+   GCJFLAGS="-g -O2"
+fi
+AC_SUBST([GCJFLAGS])
+_AM_IF_OPTION([no-dependencies],, [_AM_DEPENDENCIES(GCJ)])
 ])
 m4trace:/usr/share/aclocal-1.15/init.m4:29: -1- AC_DEFUN([AM_INIT_AUTOMAKE], [AC_PREREQ([2.65])dnl
 dnl Autoconf wants to disallow AM_ names.  We explicitly allow
@@ -920,27 +936,103 @@ m4trace:configure.ac:10: -1- m4_pattern_allow([^am__fastdepCC_TRUE$])
 m4trace:configure.ac:10: -1- m4_pattern_allow([^am__fastdepCC_FALSE$])
 m4trace:configure.ac:10: -1- _AM_SUBST_NOTMAKE([am__fastdepCC_TRUE])
 m4trace:configure.ac:10: -1- _AM_SUBST_NOTMAKE([am__fastdepCC_FALSE])
-m4trace:configure.ac:14: -1- m4_pattern_allow([^HAVE_LIBM$])
-m4trace:configure.ac:17: -1- m4_pattern_allow([^CPP$])
-m4trace:configure.ac:17: -1- m4_pattern_allow([^CPPFLAGS$])
-m4trace:configure.ac:17: -1- m4_pattern_allow([^CPP$])
-m4trace:configure.ac:17: -1- m4_pattern_allow([^GREP$])
-m4trace:configure.ac:17: -1- m4_pattern_allow([^EGREP$])
-m4trace:configure.ac:17: -1- m4_pattern_allow([^STDC_HEADERS$])
-m4trace:configure.ac:20: -1- m4_pattern_allow([^HAVE__BOOL$])
-m4trace:configure.ac:22: -1- m4_pattern_allow([^mode_t$])
-m4trace:configure.ac:23: -1- m4_pattern_allow([^size_t$])
-m4trace:configure.ac:24: -1- m4_pattern_allow([^ssize_t$])
-m4trace:configure.ac:25: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BLKSIZE$])
-m4trace:configure.ac:26: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_RDEV$])
-m4trace:configure.ac:29: -1- m4_pattern_allow([^LSTAT_FOLLOWS_SLASHED_SYMLINK$])
-m4trace:configure.ac:29: -1- m4_pattern_allow([^LIB@&t@OBJS$])
-m4trace:configure.ac:33: -1- m4_pattern_allow([^LIB@&t@OBJS$])
-m4trace:configure.ac:33: -1- m4_pattern_allow([^LTLIBOBJS$])
-m4trace:configure.ac:33: -1- AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])
-m4trace:configure.ac:33: -1- m4_pattern_allow([^am__EXEEXT_TRUE$])
-m4trace:configure.ac:33: -1- m4_pattern_allow([^am__EXEEXT_FALSE$])
-m4trace:configure.ac:33: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_TRUE])
-m4trace:configure.ac:33: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_FALSE])
-m4trace:configure.ac:33: -1- _AC_AM_CONFIG_HEADER_HOOK(["$ac_file"])
-m4trace:configure.ac:33: -1- _AM_OUTPUT_DEPENDENCY_COMMANDS
+m4trace:configure.ac:11: -1- m4_pattern_allow([^CXX$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^CXXFLAGS$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^LDFLAGS$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^LIBS$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^CPPFLAGS$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^CXX$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^ac_ct_CXX$])
+m4trace:configure.ac:11: -1- _AM_DEPENDENCIES([CXX])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^CXXDEPMODE$])
+m4trace:configure.ac:11: -1- AM_CONDITIONAL([am__fastdepCXX], [
+  test "x$enable_dependency_tracking" != xno \
+  && test "$am_cv_CXX_dependencies_compiler_type" = gcc3])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^am__fastdepCXX_TRUE$])
+m4trace:configure.ac:11: -1- m4_pattern_allow([^am__fastdepCXX_FALSE$])
+m4trace:configure.ac:11: -1- _AM_SUBST_NOTMAKE([am__fastdepCXX_TRUE])
+m4trace:configure.ac:11: -1- _AM_SUBST_NOTMAKE([am__fastdepCXX_FALSE])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^OBJC$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^OBJCFLAGS$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^LDFLAGS$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^LIBS$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^CPPFLAGS$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^OBJC$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^ac_ct_OBJC$])
+m4trace:configure.ac:12: -1- _AM_DEPENDENCIES([OBJC])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^OBJCDEPMODE$])
+m4trace:configure.ac:12: -1- AM_CONDITIONAL([am__fastdepOBJC], [
+  test "x$enable_dependency_tracking" != xno \
+  && test "$am_cv_OBJC_dependencies_compiler_type" = gcc3])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^am__fastdepOBJC_TRUE$])
+m4trace:configure.ac:12: -1- m4_pattern_allow([^am__fastdepOBJC_FALSE$])
+m4trace:configure.ac:12: -1- _AM_SUBST_NOTMAKE([am__fastdepOBJC_TRUE])
+m4trace:configure.ac:12: -1- _AM_SUBST_NOTMAKE([am__fastdepOBJC_FALSE])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^OBJCXX$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^OBJCXXFLAGS$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^LDFLAGS$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^LIBS$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^CPPFLAGS$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^OBJCXX$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^ac_ct_OBJCXX$])
+m4trace:configure.ac:13: -1- _AM_DEPENDENCIES([OBJCXX])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^OBJCXXDEPMODE$])
+m4trace:configure.ac:13: -1- AM_CONDITIONAL([am__fastdepOBJCXX], [
+  test "x$enable_dependency_tracking" != xno \
+  && test "$am_cv_OBJCXX_dependencies_compiler_type" = gcc3])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^am__fastdepOBJCXX_TRUE$])
+m4trace:configure.ac:13: -1- m4_pattern_allow([^am__fastdepOBJCXX_FALSE$])
+m4trace:configure.ac:13: -1- _AM_SUBST_NOTMAKE([am__fastdepOBJCXX_TRUE])
+m4trace:configure.ac:13: -1- _AM_SUBST_NOTMAKE([am__fastdepOBJCXX_FALSE])
+m4trace:configure.ac:14: -1- AM_PROG_AS
+m4trace:configure.ac:14: -1- m4_pattern_allow([^CCAS$])
+m4trace:configure.ac:14: -1- m4_pattern_allow([^CCASFLAGS$])
+m4trace:configure.ac:14: -1- _AM_IF_OPTION([no-dependencies], [], [_AM_DEPENDENCIES([CCAS])])
+m4trace:configure.ac:14: -2- _AM_MANGLE_OPTION([no-dependencies])
+m4trace:configure.ac:14: -1- _AM_DEPENDENCIES([CCAS])
+m4trace:configure.ac:14: -1- m4_pattern_allow([^CCASDEPMODE$])
+m4trace:configure.ac:14: -1- AM_CONDITIONAL([am__fastdepCCAS], [
+  test "x$enable_dependency_tracking" != xno \
+  && test "$am_cv_CCAS_dependencies_compiler_type" = gcc3])
+m4trace:configure.ac:14: -1- m4_pattern_allow([^am__fastdepCCAS_TRUE$])
+m4trace:configure.ac:14: -1- m4_pattern_allow([^am__fastdepCCAS_FALSE$])
+m4trace:configure.ac:14: -1- _AM_SUBST_NOTMAKE([am__fastdepCCAS_TRUE])
+m4trace:configure.ac:14: -1- _AM_SUBST_NOTMAKE([am__fastdepCCAS_FALSE])
+m4trace:configure.ac:15: -1- AM_PROG_GCJ
+m4trace:configure.ac:15: -1- m4_pattern_allow([^GCJ$])
+m4trace:configure.ac:15: -1- m4_pattern_allow([^ac_ct_GCJ$])
+m4trace:configure.ac:15: -1- m4_pattern_allow([^GCJFLAGS$])
+m4trace:configure.ac:15: -1- _AM_IF_OPTION([no-dependencies], [], [_AM_DEPENDENCIES(GCJ)])
+m4trace:configure.ac:15: -2- _AM_MANGLE_OPTION([no-dependencies])
+m4trace:configure.ac:15: -1- _AM_DEPENDENCIES([GCJ])
+m4trace:configure.ac:15: -1- m4_pattern_allow([^GCJDEPMODE$])
+m4trace:configure.ac:15: -1- AM_CONDITIONAL([am__fastdepGCJ], [
+  test "x$enable_dependency_tracking" != xno \
+  && test "$am_cv_GCJ_dependencies_compiler_type" = gcc3])
+m4trace:configure.ac:15: -1- m4_pattern_allow([^am__fastdepGCJ_TRUE$])
+m4trace:configure.ac:15: -1- m4_pattern_allow([^am__fastdepGCJ_FALSE$])
+m4trace:configure.ac:15: -1- _AM_SUBST_NOTMAKE([am__fastdepGCJ_TRUE])
+m4trace:configure.ac:15: -1- _AM_SUBST_NOTMAKE([am__fastdepGCJ_FALSE])
+m4trace:configure.ac:20: -1- m4_pattern_allow([^CPP$])
+m4trace:configure.ac:20: -1- m4_pattern_allow([^CPPFLAGS$])
+m4trace:configure.ac:20: -1- m4_pattern_allow([^CPP$])
+m4trace:configure.ac:20: -1- m4_pattern_allow([^GREP$])
+m4trace:configure.ac:20: -1- m4_pattern_allow([^EGREP$])
+m4trace:configure.ac:20: -1- m4_pattern_allow([^STDC_HEADERS$])
+m4trace:configure.ac:23: -1- m4_pattern_allow([^HAVE__BOOL$])
+m4trace:configure.ac:25: -1- m4_pattern_allow([^mode_t$])
+m4trace:configure.ac:26: -1- m4_pattern_allow([^size_t$])
+m4trace:configure.ac:27: -1- m4_pattern_allow([^ssize_t$])
+m4trace:configure.ac:28: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BLKSIZE$])
+m4trace:configure.ac:29: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_RDEV$])
+m4trace:configure.ac:32: -1- m4_pattern_allow([^LSTAT_FOLLOWS_SLASHED_SYMLINK$])
+m4trace:configure.ac:32: -1- m4_pattern_allow([^LIB@&t@OBJS$])
+m4trace:configure.ac:39: -1- m4_pattern_allow([^LIB@&t@OBJS$])
+m4trace:configure.ac:39: -1- m4_pattern_allow([^LTLIBOBJS$])
+m4trace:configure.ac:39: -1- AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])
+m4trace:configure.ac:39: -1- m4_pattern_allow([^am__EXEEXT_TRUE$])
+m4trace:configure.ac:39: -1- m4_pattern_allow([^am__EXEEXT_FALSE$])
+m4trace:configure.ac:39: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_TRUE])
+m4trace:configure.ac:39: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_FALSE])
+m4trace:configure.ac:39: -1- _AC_AM_CONFIG_HEADER_HOOK(["$ac_file"])
+m4trace:configure.ac:39: -1- _AM_OUTPUT_DEPENDENCY_COMMANDS
