@@ -219,6 +219,11 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 		switch (ftsent->fts_info) {
 		case FTS_F:
 			sctx->files++;
+
+			/* Check origin xattr */
+			ret = scan_check_entry(sop->origin, sctx);
+			if (ret)
+			        goto out;
 			break;
 		case FTS_DEFAULT:
 			/* Check whiteouts */
@@ -233,6 +238,20 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 			ret = scan_check_entry(sop->redirect, sctx);
 			if (ret)
 				goto out;
+
+			/* Check origin xattr */
+			ret = scan_check_entry(sop->origin, sctx);
+			if (ret)
+				goto out;
+
+			/* Save current dir data and create new one for subdir */
+			ftsent->fts_pointer = sctx->dirdata;
+			sctx->dirdata = smalloc(sizeof(struct scan_dir_data));
+			break;
+		case FTS_DP:
+			/* Restore parent's dir data */
+			free(sctx->dirdata);
+			sctx->dirdata = ftsent->fts_pointer;
 			break;
 		case FTS_NS:
 		case FTS_DNR:
