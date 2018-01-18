@@ -25,15 +25,24 @@ If an redirect directory is found, the following must be met:
 
 1) The directory path pointed by redirect xattr should exist in one of lower
    layers.
-2) The origin directory should be redirected only once, which means there is
-   only one redirect xattr point to this origin directory in all layers.
-3) A whiteout or an opaque directory with the same name to origin should exist
-   in the same directory as the redirect directory.
+2) There must be something with the same name to the rename origin in upper
+   layer covering the lower target, could be a whiteout or a generic file,
+   could be an opaque directory or another redirect direcotry but not a merge
+   directory.
+3) The origin directory should be redirected by only once, which means this
+   origin directory should be redirected by an unique directory in all layers.
 
-If not, 1) The redirect xattr is invalid and need to remove 2) One of the
-redirect xattr is redundant but not sure which one is, ask user or warn in
-auto mode 3) Create a whiteout device or set opaque xattr to an existing
-directory if the parent directory was meregd or remove xattr if not.
+If not,
+1) The redirect xattr is invalid and should remove.
+2) If nothing covering the redirect origin target, fix the missing whiteout.
+   If the redirect origin is covered by a generic directory, it becomes a
+   subcase of duplicate redirect directory (redirect direcotry duplicate with
+   an existing merge directory). Not sure the origin is a merge directory or
+   a redirected directory, so there are two options can fix this inconsistency:
+   a) remove the redirect xattr fsck found, or b) set opaque to the covering
+   directory. Ask user by default or warn in auto mode.
+3) Record redirect xattrs but not sure which one is invalid, ask user by
+   default and warn in auto mode.
 
 Usage
 =====
