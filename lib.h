@@ -60,6 +60,8 @@
 /* Directories scan data structs */
 struct scan_dir_data {
        int origins;		/* origin number in this directory (no iterate) */
+       int mergedirs;		/* merge subdir number in this directory (no iterate) */
+       int redirects;		/* redirect subdir number in this directory (no iterate) */
 };
 
 struct scan_ctx {
@@ -86,6 +88,7 @@ struct scan_operations {
 	int (*whiteout)(struct scan_ctx *);
 	int (*redirect)(struct scan_ctx *);
 	int (*origin)(struct scan_ctx *);
+	int (*unreal)(struct scan_ctx *);
 };
 
 static inline void set_inconsistency(int *status)

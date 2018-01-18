@@ -721,6 +721,38 @@ static int ovl_count_origin(struct scan_ctx *sctx)
 	return 0;
 }
 
+static inline bool ovl_is_merge(int dirfd, const char *pathname,
+                               int dirtype, int stack)
+{
+	struct ovl_lookup_data od = {0};
+
+	if (ovl_is_opaque(dirfd, pathname))
+		return false;
+	if (ovl_lookup_lower(pathname, dirtype, stack, &od))
+		return false;
+	if (od.exist && is_dir(&od.st))
+		return true;
+
+	return false;
+}
+
+/* Count merge dir and redirect dir in a specified directory */
+static int ovl_count_unreal(struct scan_ctx *sctx)
+{
+	struct scan_dir_data *parent = sctx->dirdata;
+
+	if (!parent)
+		return 0;
+
+	if (ovl_is_redirect(sctx->dirfd, sctx->pathname))
+		parent->redirects++;
+	if (!ovl_is_origin(sctx->dirfd, sctx->pathname) &&
+	    ovl_is_merge(sctx->dirfd, sctx->pathname,
+			 sctx->dirtype, sctx->stack))
+		parent->mergedirs++;
+
+	return 0;
+}
 
 /*
  * Scan Pass:
@@ -745,6 +777,7 @@ static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
 		[OVL_UPPER] = {
 			.whiteout = ovl_check_whiteout,
 			.origin = ovl_count_origin,
+			.unreal = ovl_count_unreal,
 		},
 		[OVL_LOWER] = {
 			.whiteout = ovl_check_whiteout,
