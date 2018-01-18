@@ -244,6 +244,10 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 			if (ret)
 				goto out;
 
+			ret = scan_check_entry(sop->unreal, sctx);
+			if (ret)
+				goto out;
+
 			/* Save current dir data and create new one for subdir */
 			ftsent->fts_pointer = sctx->dirdata;
 			sctx->dirdata = smalloc(sizeof(struct scan_dir_data));
