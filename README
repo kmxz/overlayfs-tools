@@ -44,6 +44,28 @@ If not,
 3) Record redirect xattrs but not sure which one is invalid, ask user by
    default and warn in auto mode.
 
+Impure directories
+------------------
+
+An impure directory is a directory with "trusted.overlay.impure" xattr valued
+'y', which indicate that this directory may contain copied up targets from lower
+layers.
+If a target copy-up from lower to upper layer, it's 'd_ino' (see getdents(2))
+will change from lower's 'd_ino' to upper's (a new inode will be created in
+upper layer). So the impure xattr should be set to the parent directory to
+prompt overlay filesystem to get and return the origin 'd_ino', thus ensuring
+the consistentcy of 'd_ino'.
+
+There are three situations of setting impure xattr in overlay filesystem:
+1) Copy-up lower target in a directory.
+2) Link an origin target (already copied up, have origin xattr) into a
+   directory.
+3) Rename an origin target (include merge subdirectories) into a new
+   directory.
+
+So, the impure xattr should be set if a direcotry contains origin targets or
+redirect/merge subdirectories. If not, fix the impure xattr.
+
 Usage
 =====
 

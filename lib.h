@@ -55,6 +55,7 @@
 #define OVL_OPAQUE_XATTR	"trusted.overlay.opaque"
 #define OVL_REDIRECT_XATTR	"trusted.overlay.redirect"
 #define OVL_ORIGIN_XATTR	"trusted.overlay.origin"
+#define OVL_IMPURE_XATTR	"trusted.overlay.impure"
 
 
 /* Directories scan data structs */
@@ -76,6 +77,7 @@ struct scan_ctx {
 	int i_whiteouts;	/* invalid whiteouts */
 	int t_redirects;	/* total redirect dirs */
 	int i_redirects;	/* invalid redirect dirs */
+	int m_impure;		/* missing inpure dirs */
 
 	const char *pathname;	/* path relative to overlay root */
 	const char *filename;	/* filename */
@@ -89,6 +91,7 @@ struct scan_operations {
 	int (*redirect)(struct scan_ctx *);
 	int (*origin)(struct scan_ctx *);
 	int (*unreal)(struct scan_ctx *);
+	int (*impure)(struct scan_ctx *);
 };
 
 static inline void set_inconsistency(int *status)

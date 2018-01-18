@@ -132,6 +132,16 @@ static inline int ovl_set_opaque(int dirfd, const char *pathname)
 	return set_xattr(dirfd, pathname, OVL_OPAQUE_XATTR, "y", 1);
 }
 
+static inline int ovl_is_impure(int dirfd, const char *pathname)
+{
+	return is_dir_xattr(dirfd, pathname, OVL_IMPURE_XATTR);
+}
+
+static inline int ovl_set_impure(int dirfd, const char *pathname)
+{
+	return set_xattr(dirfd, pathname, OVL_IMPURE_XATTR, "y", 1);
+}
+
 static int ovl_get_redirect(int dirfd, const char *pathname,
 			    char **redirect)
 {
@@ -708,6 +718,54 @@ out:
 	return ret;
 }
 
+/*
+ * If a directory has origin target and redirect/merge subdirectories in it,
+ * it may contain copied up targets. In order to avoid 'd_ino' change after
+ * lower target copy-up or rename (which will create a new inode),
+ * 'impure xattr' will be set in the parent directory, it is used to prompt
+ * overlay filesystem to get and return the origin 'd_ino' in getdents(2).
+ *
+ * Missing "impure xattr" will lead to return wrong 'd_ino' of impure directory.
+ * So check origin target and redirect/merge subdirs in a specified directory,
+ * and fix "impure xattr" if necessary.
+ */
+static int ovl_check_impure(struct scan_ctx *sctx)
+{
+	struct scan_dir_data *dirdata = sctx->dirdata;
+
+	if (!dirdata)
+		return 0;
+
+	/*
+	 * Impure xattr should be set if directory has redirect/merge
+	 * subdir or origin targets.
+	 */
+	if (!dirdata->origins && !dirdata->mergedirs &&
+	    !dirdata->redirects)
+		return 0;
+
+	if (ovl_is_impure(sctx->dirfd, sctx->pathname))
+		return 0;
+
+	/* Fix impure xattrs */
+	if (ovl_ask_action("Missing impure xattr", sctx->pathname,
+			   sctx->dirtype, sctx->stack, "Fix", 1)) {
+		if (ovl_set_impure(sctx->dirfd, sctx->pathname))
+			return -1;
+	} else {
+		/*
+		 * Note: not enforce to fix the case of directory that
+		 * only contains general merge subdirs because it could
+		 * be an newly created overlay image and fix by overlay
+		 * filesystem after mount.
+		 */
+		if (dirdata->origins || dirdata->redirects)
+			sctx->m_impure++;
+	}
+
+	return 0;
+}
+
 static int ovl_count_origin(struct scan_ctx *sctx)
 {
 	struct scan_dir_data *parent = sctx->dirdata;
@@ -760,8 +818,9 @@ static int ovl_count_unreal(struct scan_ctx *sctx)
  *            of redirect directory, include duplicate redirect
  *            directory. After this pass, the hierarchical structure
  *            of each layer's directories becomes consistent.
- * -Pass two: iterate through all directories, and find and check
- *            validity of whiteouts.
+ * -Pass two: Iterate through all directories, and find and check
+ *            validity of whiteouts, and check missing impure xattr
+ *            in upperdir.
  */
 
 static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
@@ -778,6 +837,7 @@ static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
 			.whiteout = ovl_check_whiteout,
 			.origin = ovl_count_origin,
 			.unreal = ovl_count_unreal,
+			.impure = ovl_check_impure,
 		},
 		[OVL_LOWER] = {
 			.whiteout = ovl_check_whiteout,
@@ -787,7 +847,7 @@ static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
 
 static char *ovl_scan_desc[OVL_SCAN_PASS] = {
 	"Checking redirect xattr and directory tree",
-	"Checking whiteouts"
+	"Checking whiteouts and impure xattr"
 };
 
 static void ovl_scan_clean(void)
@@ -800,10 +860,12 @@ static void ovl_scan_report(struct scan_ctx *sctx)
 {
 	if (flags & FL_VERBOSE) {
 		print_info(_("Scan %d directories, %d files, "
-			     "%d/%d whiteouts, %d/%d redirect dirs\n"),
+			     "%d/%d whiteouts, %d/%d redirect dirs "
+			     "%d missing impure\n"),
 			     sctx->directories, sctx->files,
 			     sctx->i_whiteouts, sctx->t_whiteouts,
-			     sctx->i_redirects, sctx->t_redirects);
+			     sctx->i_redirects, sctx->t_redirects,
+			     sctx->m_impure);
 	}
 }
 
@@ -815,6 +877,9 @@ static void ovl_scan_check(struct scan_ctx *sctx)
 	else if (sctx->i_redirects)
 		print_info(_("Invalid redirect directories %d left!\n"),
 			     sctx->i_redirects);
+	else if (sctx->m_impure)
+		print_info(_("Directories %d missing impure xattr!\n"),
+			     sctx->m_impure);
 	else
 		return;
 
@@ -829,7 +894,8 @@ int ovl_scan_fix(void)
 	int ret;
 
 	if (flags & FL_VERBOSE)
-		print_info(_("Scan and fix: [whiteouts|redirect dir]\n"));
+		print_info(_("Scan and fix: "
+			     "[whiteouts|redirect dir|impure dir]\n"));
 
 	for (i = 0; i < OVL_SCAN_PASS; i++) {
 		if (flags & FL_VERBOSE)
