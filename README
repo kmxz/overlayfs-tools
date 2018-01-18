@@ -1,0 +1,87 @@
+fsck.overlay
+============
+
+fsck.overlay is used to check and optionally repair underlying directories
+of overlay-filesystem.
+
+Check the following points:
+
+Whiteouts
+---------
+
+A whiteout is a character device with 0/0 device number. It is used to record
+the removed files or directories, When a whiteout is found in a directory,
+there should be at least one directory or file with the same name in any of the
+corresponding lower layers. If not exist, the whiteout will be treated as orphan
+whiteout and remove.
+
+Redirect directories
+--------------------
+
+An redirect directory is a directory with "trusted.overlay.redirect" xattr
+valued to the path of the original location from the root of the overlay. It
+is only used when renaming a directory and "redirect dir" feature is enabled.
+If an redirect directory is found, the following must be met:
+
+1) The directory path pointed by redirect xattr should exist in one of lower
+   layers.
+2) The origin directory should be redirected only once, which means there is
+   only one redirect xattr point to this origin directory in all layers.
+3) A whiteout or an opaque directory with the same name to origin should exist
+   in the same directory as the redirect directory.
+
+If not, 1) The redirect xattr is invalid and need to remove 2) One of the
+redirect xattr is redundant but not sure which one is, ask user or warn in
+auto mode 3) Create a whiteout device or set opaque xattr to an existing
+directory if the parent directory was meregd or remove xattr if not.
+
+Usage
+=====
+
+1. Ensure overlay filesystem is not mounted based on directories which need to
+   check.
+
+2. Run fsck.overlay program:
+   Usage:
+   fsck.overlay [-o lowerdir=<lowers>,upperdir=<upper>,workdir=<work>] [-pnyvhV]
+
+   Options:
+   -o,                       specify underlying directories of overlayfs:
+                             multiple lower directories use ':' as separator
+   -p,                       automatic repair (no questions)
+   -n,                       make no changes to the filesystem
+   -y,                       assume "yes" to all questions
+   -v, --verbose             print more messages of overlayfs
+   -h, --help                display this usage of overlayfs
+   -V, --version             display version information
+
+   Example:
+   fsck.overlay -o lowerdir=lower,upperdir=upper,workdir=work
+
+3. Exit value:
+   0      No errors
+   1      Filesystem errors corrected
+   2      System should be rebooted
+   4      Filesystem errors left uncorrected
+   8      Operational error
+   16     Usage or syntax error
+   32     Checking canceled by user request
+   128    Shared-library error
+
+Note:
+1. It is strongly recommend to run this program after modifing underlying
+   directories while overlay filesystem is offline.
+2. Enough file descriptors (more than the number of specified underlying
+   directories) are required to run this program.
+
+Todo
+====
+
+1. Overlay filesystem mounted check. Prevent fscking when overlay is
+   online. Now, We cannot distinguish mounted directories if overlayfs was
+   mounted with relative path. Should modify kernel together to support.
+2. Check and fix invalid redirect xattr through origin xattr.
+3. Check Symbolic link with absolute path in lower layer.
+4. Check validity of origin/impure/nlink xattr.
+5. Check consistency of index feature.
+6. ...
