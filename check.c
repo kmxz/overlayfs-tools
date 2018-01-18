@@ -180,6 +180,13 @@ static inline bool ovl_is_redirect(int dirfd, const char *pathname)
 	return exist;
 }
 
+static inline bool ovl_is_origin(int dirfd, const char *pathname)
+{
+	bool exist = false;
+	get_xattr(dirfd, pathname, OVL_ORIGIN_XATTR, NULL, &exist);
+	return exist;
+}
+
 static inline int ovl_ask_action(const char *description, const char *pathname,
 				 int dirtype, int stack,
 				 const char *question, int action)
@@ -701,6 +708,20 @@ out:
 	return ret;
 }
 
+static int ovl_count_origin(struct scan_ctx *sctx)
+{
+	struct scan_dir_data *parent = sctx->dirdata;
+
+	if (!parent)
+		return 0;
+
+	if (ovl_is_origin(sctx->dirfd, sctx->pathname))
+		parent->origins++;
+
+	return 0;
+}
+
+
 /*
  * Scan Pass:
  * -Pass one: Iterate through all directories, and check validity
@@ -723,6 +744,7 @@ static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
 	{
 		[OVL_UPPER] = {
 			.whiteout = ovl_check_whiteout,
+			.origin = ovl_count_origin,
 		},
 		[OVL_LOWER] = {
 			.whiteout = ovl_check_whiteout,

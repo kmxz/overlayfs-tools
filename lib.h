@@ -54,9 +54,14 @@
 /* Xattr */
 #define OVL_OPAQUE_XATTR	"trusted.overlay.opaque"
 #define OVL_REDIRECT_XATTR	"trusted.overlay.redirect"
+#define OVL_ORIGIN_XATTR	"trusted.overlay.origin"
 
 
-/* Directories scan data struct */
+/* Directories scan data structs */
+struct scan_dir_data {
+       int origins;		/* origin number in this directory (no iterate) */
+};
+
 struct scan_ctx {
 	const char *dirname;	/* overlay base dir */
 	int dirfd;		/* dir descriptor */
@@ -73,12 +78,14 @@ struct scan_ctx {
 	const char *pathname;	/* path relative to overlay root */
 	const char *filename;	/* filename */
 	struct stat *st;	/* file stat */
+	struct scan_dir_data *dirdata;	/* parent dir data of current (could be null) */
 };
 
 /* Directories scan callback operations struct */
 struct scan_operations {
 	int (*whiteout)(struct scan_ctx *);
 	int (*redirect)(struct scan_ctx *);
+	int (*origin)(struct scan_ctx *);
 };
 
 static inline void set_inconsistency(int *status)
