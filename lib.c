@@ -253,6 +253,11 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 			sctx->dirdata = smalloc(sizeof(struct scan_dir_data));
 			break;
 		case FTS_DP:
+			/* Check impure xattr */
+			ret = scan_check_entry(sop->impure, sctx);
+			if (ret)
+				goto out;
+
 			/* Restore parent's dir data */
 			free(sctx->dirdata);
 			sctx->dirdata = ftsent->fts_pointer;
