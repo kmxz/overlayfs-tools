@@ -51,12 +51,6 @@
 #define OVL_WORKER	2
 #define OVL_PTYPE_MAX	3
 
-/* Xattr */
-#define OVL_OPAQUE_XATTR	"trusted.overlay.opaque"
-#define OVL_REDIRECT_XATTR	"trusted.overlay.redirect"
-#define OVL_ORIGIN_XATTR	"trusted.overlay.origin"
-#define OVL_IMPURE_XATTR	"trusted.overlay.impure"
-
 
 /* Directories scan data structs */
 struct scan_dir_data {
