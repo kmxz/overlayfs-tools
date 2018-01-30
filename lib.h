@@ -90,7 +90,7 @@ struct scan_operations {
 	int (*whiteout)(struct scan_ctx *);
 	int (*redirect)(struct scan_ctx *);
 	int (*origin)(struct scan_ctx *);
-	int (*unreal)(struct scan_ctx *);
+	int (*impurity)(struct scan_ctx *);
 	int (*impure)(struct scan_ctx *);
 };
 

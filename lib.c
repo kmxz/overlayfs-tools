@@ -220,8 +220,8 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 		case FTS_F:
 			sctx->files++;
 
-			/* Check origin xattr */
-			ret = scan_check_entry(sop->origin, sctx);
+			/* Check impurities */
+			ret = scan_check_entry(sop->impurity, sctx);
 			if (ret)
 			        goto out;
 			break;
@@ -239,12 +239,8 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 			if (ret)
 				goto out;
 
-			/* Check origin xattr */
-			ret = scan_check_entry(sop->origin, sctx);
-			if (ret)
-				goto out;
-
-			ret = scan_check_entry(sop->unreal, sctx);
+			/* Check impurities */
+			ret = scan_check_entry(sop->impurity, sctx);
 			if (ret)
 				goto out;
 
