@@ -226,6 +226,9 @@ static inline int ovl_ask_question(const char *question, const char *pathname,
 	return ask_question("", action);
 }
 
+/*
+ * Lookup a specified target exist or not, return the stat struct if exist
+ */
 static int ovl_lookup_single(int dirfd, const char *pathname,
 			     struct stat *st, bool *exist)
 {
@@ -243,6 +246,13 @@ static int ovl_lookup_single(int dirfd, const char *pathname,
 	return 0;
 }
 
+/*
+ * Lookup a specified target exist or not in a specified layer.
+ * If not exist, we may want to scan the next layer, so iterate to the
+ * overlay root dir to make sure we are now in redirect or opaque contex,
+ * it will change base scan dirs for next layer's lookup or stop scan
+ * directly.
+ */
 static int ovl_lookup_layer(struct ovl_lookup_ctx *lctx)
 {
 	char *pathname;
@@ -441,8 +451,18 @@ out:
 	return ret;
 }
 
+/* Record the valid redirect target founded */
 LIST_HEAD(redirect_list);
 
+/*
+ * Record a redirect entry into list
+ *
+ * @pathname: redirect dir pathname
+ * @dirtype: layer type of the redirect dir (OVL_UPPER or OVL_LOWER)
+ * @stack: stack number (valid if OVL_LOWER)
+ * @origin: redirected origin dir pathname
+ * @ostack: retidected origin dir stack number
+ */
 static void ovl_redirect_entry_add(const char *pathname, int dirtype, int stack,
 				   const char *origin, int ostack)
 {
@@ -465,6 +485,15 @@ static void ovl_redirect_entry_add(const char *pathname, int dirtype, int stack,
 	list_add(&new->list, &redirect_list);
 }
 
+/*
+ * Find a redirect entry through the redirected origin target
+ *
+ * @origin: redirected origin dir pathname
+ * @ostack: retidected origin dir stack number
+ * @pathname: redirect dir pathname found
+ * @dirtype: layer type of the redirect dir (OVL_UPPER or OVL_LOWER)
+ * @stack: stack number (valid if OVL_LOWER)
+ */
 static bool ovl_redirect_entry_find(const char *origin, int ostack,
 				    int *dirtype, int *stack, char **pathname)
 {
@@ -488,6 +517,9 @@ static bool ovl_redirect_entry_find(const char *origin, int ostack,
 	return false;
 }
 
+/*
+ * Delete a redirect entry through the redirected origin target
+ */
 static void ovl_redirect_entry_del(const char *origin, int ostack)
 {
 	struct ovl_redirect_entry *entry;
@@ -544,6 +576,12 @@ static void ovl_redirect_free(void)
 	}
 }
 
+/*
+ * Remove an invalid redirect xattr.
+ * If the lower dir with the same name exists, it may become a
+ * merge dir and duplicate with another recirect xattr already
+ * checked, so iterate the list to recheck them.
+ */
 static int ovl_do_remove_redirect(int dirfd, const char *pathname,
 				  int dirtype, int stack,
 				  int *total, int *invalid)
@@ -863,6 +901,7 @@ static void ovl_scan_report(struct scan_ctx *sctx)
 	}
 }
 
+/* Report the invalid targets left */
 static void ovl_scan_check(struct scan_ctx *sctx)
 {
 	if (sctx->i_whiteouts)

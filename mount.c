@@ -1,5 +1,5 @@
 /*
- * mount.c - Check mounted overlay
+ * mount.c - Parse underlying dirs and check mounted overlay file system
  *
  * Copyright (c) 2017 Huawei.  All Rights Reserved.
  * Author: zhangyi (F) <yi.zhang@huawei.com>
@@ -105,6 +105,12 @@ static inline char *ovl_match_dump(const char *opt, const char *type)
 
 /*
  * Resolve and get each underlying directory of overlay filesystem
+ *
+ * @config: underlying dirs user specified
+ * @lowerdir: absolute path of lowerdirs
+ * @lowernum: stack number of lowerdirs
+ * @upperdir: absolute path of upperdir
+ * @workdir: absolute path of workdir
  */
 int ovl_get_dirs(struct ovl_config *config, char ***lowerdir,
 		 int *lowernum, char **upperdir, char **workdir)
@@ -187,7 +193,10 @@ void ovl_parse_opt(char *opt, struct ovl_config *config)
 	}
 }
 
-/* Scan current mounted overlayfs and get used underlying directories */
+/*
+ * Scan current mounted overlayfs and get used underlying directories,
+ * (do not scan overlayfs mounted with relative path)
+ */
 static int ovl_scan_mount_init(struct ovl_mnt_entry **ovl_mnt_entries,
 			       int *ovl_mnt_count)
 {
