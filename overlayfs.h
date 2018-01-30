@@ -42,4 +42,7 @@
 #define OVL_ORIGIN_XATTR	"trusted.overlay.origin"
 #define OVL_IMPURE_XATTR	"trusted.overlay.impure"
 
+unsigned int ovl_split_lowerdirs(char *lower);
+char *ovl_next_opt(char **s);
+
 #endif /* OVL_OVERLAYFS_H */

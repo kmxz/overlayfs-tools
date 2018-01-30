@@ -52,30 +52,6 @@ extern char *upperdir;
 extern char *workdir;
 extern int lower_num;
 
-/*
- * Split directories to individual one.
- * (copied from linux kernel, see fs/overlayfs/super.c)
- */
-static unsigned int ovl_split_lowerdirs(char *lower)
-{
-	unsigned int ctr = 1;
-	char *s, *d;
-
-	for (s = d = lower;; s++, d++) {
-		if (*s == '\\') {
-			s++;
-		} else if (*s == ':') {
-			*d = '\0';
-			ctr++;
-			continue;
-		}
-		*d = *s;
-		if (!*s)
-			break;
-	}
-	return ctr;
-}
-
 /* Resolve each lower directories and check the validity */
 static int ovl_resolve_lowerdirs(char *loweropt, char ***lowerdir,
 				 int *lowernum)
@@ -118,33 +94,6 @@ err:
 	*lowerdir = NULL;
 	*lowernum = 0;
 	return -1;
-}
-
-/*
- * Split and return next opt.
- * (copied from linux kernel, see fs/overlayfs/super.c)
- */
-static char *ovl_next_opt(char **s)
-{
-	char *sbegin = *s;
-	char *p;
-
-	if (sbegin == NULL)
-		return NULL;
-
-	for (p = sbegin; *p; p++) {
-		if (*p == '\\') {
-			p++;
-			if (!*p)
-				break;
-		} else if (*p == ',') {
-			*p = '\0';
-			*s = p + 1;
-			return sbegin;
-		}
-	}
-	*s = NULL;
-	return sbegin;
 }
 
 static inline char *ovl_match_dump(const char *opt, const char *type)
