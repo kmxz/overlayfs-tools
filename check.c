@@ -766,19 +766,6 @@ static int ovl_check_impure(struct scan_ctx *sctx)
 	return 0;
 }
 
-static int ovl_count_origin(struct scan_ctx *sctx)
-{
-	struct scan_dir_data *parent = sctx->dirdata;
-
-	if (!parent)
-		return 0;
-
-	if (ovl_is_origin(sctx->dirfd, sctx->pathname))
-		parent->origins++;
-
-	return 0;
-}
-
 static inline bool ovl_is_merge(int dirfd, const char *pathname,
                                int dirtype, int stack)
 {
@@ -794,20 +781,27 @@ static inline bool ovl_is_merge(int dirfd, const char *pathname,
 	return false;
 }
 
-/* Count merge dir and redirect dir in a specified directory */
-static int ovl_count_unreal(struct scan_ctx *sctx)
+/*
+ * Count impurities in a specified directory, which includes origin
+ * targets, redirect dirs and merge dirs.
+ */
+static int ovl_count_impurity(struct scan_ctx *sctx)
 {
 	struct scan_dir_data *parent = sctx->dirdata;
 
 	if (!parent)
 		return 0;
 
-	if (ovl_is_redirect(sctx->dirfd, sctx->pathname))
-		parent->redirects++;
-	if (!ovl_is_origin(sctx->dirfd, sctx->pathname) &&
-	    ovl_is_merge(sctx->dirfd, sctx->pathname,
-			 sctx->dirtype, sctx->stack))
-		parent->mergedirs++;
+	if (ovl_is_origin(sctx->dirfd, sctx->pathname))
+		parent->origins++;
+
+	if (is_dir(sctx->st)) {
+		if (ovl_is_redirect(sctx->dirfd, sctx->pathname))
+			parent->redirects++;
+		if (ovl_is_merge(sctx->dirfd, sctx->pathname,
+				 sctx->dirtype, sctx->stack))
+			parent->mergedirs++;
+	}
 
 	return 0;
 }
@@ -835,8 +829,7 @@ static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
 	{
 		[OVL_UPPER] = {
 			.whiteout = ovl_check_whiteout,
-			.origin = ovl_count_origin,
-			.unreal = ovl_count_unreal,
+			.impurity = ovl_count_impurity,
 			.impure = ovl_check_impure,
 		},
 		[OVL_LOWER] = {
