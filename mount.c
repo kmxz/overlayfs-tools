@@ -33,9 +33,9 @@
 
 #include "common.h"
 #include "config.h"
-#include "lib.h"
 #include "check.h"
 #include "mount.h"
+#include "overlayfs.h"
 
 struct ovl_mnt_entry {
 	char **lowerdir;

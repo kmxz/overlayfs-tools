@@ -16,13 +16,30 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef OVL_CONFIG_H
-#define OVL_CONFIG_H
+/*
+ * This is common constant definition of overlayfs from the
+ * Linux kernel.
+ * (see fs/overlayfs/overlayfs.h and fs/overlayfs/super.c)
+ */
 
-/* program version */
-#define PACKAGE_VERSION	"v0.1.0"
+#ifndef OVL_OVERLAYFS_H
+#define OVL_OVERLAYFS_H
 
-/* File with mounted filesystems */
-#define MOUNT_TAB "/proc/mounts"
+/* Name of overlay filesystem type */
+#define OVERLAY_NAME "overlay"
 
-#endif
+/* overlay max lower stacks */
+#define OVL_MAX_STACK 500
+
+/* Mount options */
+#define OPT_LOWERDIR "lowerdir="
+#define OPT_UPPERDIR "upperdir="
+#define OPT_WORKDIR "workdir="
+
+/* Xattr */
+#define OVL_OPAQUE_XATTR	"trusted.overlay.opaque"
+#define OVL_REDIRECT_XATTR	"trusted.overlay.redirect"
+#define OVL_ORIGIN_XATTR	"trusted.overlay.origin"
+#define OVL_IMPURE_XATTR	"trusted.overlay.impure"
+
+#endif /* OVL_OVERLAYFS_H */

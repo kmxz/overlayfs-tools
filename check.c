@@ -40,6 +40,7 @@
 #include "check.h"
 #include "path.h"
 #include "list.h"
+#include "overlayfs.h"
 
 /* Lookup context */
 struct ovl_lookup_ctx {
