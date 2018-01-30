@@ -1,0 +1,52 @@
+Todo list
+=========
+
+Common
+------
+
+1. Overlay filesystem mounted check
+Prevent fscking when overlay is online. Now, we cannot distinguish mounted
+directories if overlayfs was mounted with relative path. Should modify
+Linux kernel together to support.
+
+2. Check symbolic link with absolute path in lower layer
+Symbolic link in the underlying layers with absolute path which point to
+the target out of overlay filesystem or in the lower layers may lead to
+modifing the wrong target, this not handled by Linux kernel now.
+
+3. Xattr support check
+If basic file system not support xattr, a lot of check points should skip.
+
+4. Signal detect
+Register SIGINT and SIGTERM sigaction handler to abort fsck safely.
+
+4. Log
+Export the optionally fsck log and results to the system log subsystem.
+
+5. ...
+
+Features
+--------
+
+1. Check origin xattr   --- doing
+Check basic elements in the origin xattr, verify it's corrupt or not, and
+decode the file handle to check the corresponding origin target... Should
+ask user to remove the corrupt and stale origin xattr.
+
+2. Check index dir when "index=on"
+1) Verify the origin xattr in the index dir, it should match the upper
+   root dir.
+2) Check index files (not dir and whiteout) in the index dir, check
+   file name and decode the file handle to check the origin target,
+   and check the nlink... Should ask user to remove the corrupt, stale
+   and orphan index file.
+
+3. Check index dir when "nfs_export=on" (depend on "index=on")
+1) Verify the 'upper' xattr in the index dir. Encode the upper root dir
+   and compare with the file handle in the 'upper' xattr...
+2) Check index-dirs in the index dir, check dirname and decode the
+   corresponding upper target to verify the file handle... Should remove
+   (or whiteout) the corrput, stale and orphan index-dirs.
+3) Check index whiteouts in the index dir...
+
+4. ...

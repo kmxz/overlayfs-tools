@@ -105,14 +105,9 @@ Note:
 2. Enough file descriptors (more than the number of specified underlying
    directories) are required to run this program.
 
-Todo
-====
+Contributions
+=============
 
-1. Overlay filesystem mounted check. Prevent fscking when overlay is
-   online. Now, We cannot distinguish mounted directories if overlayfs was
-   mounted with relative path. Should modify kernel together to support.
-2. Check and fix invalid redirect xattr through origin xattr.
-3. Check Symbolic link with absolute path in lower layer.
-4. Check validity of origin/impure/nlink xattr.
-5. Check consistency of index feature.
-6. ...
+Like the Linux kernel, contributions to overlayfs-progs are very welcome.
+Please send patches to the author and CC linux-unionfs mail list at
+linux-unionfs@vger.kernel.org
