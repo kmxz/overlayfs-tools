@@ -54,7 +54,10 @@ int lower_num = 0;
 int flags = 0;		/* user input option flags */
 int status = 0;		/* fsck scan status */
 
-/* Open underlying dirs */
+/*
+ * Open underlying dirs (include upper dir and lower dirs), check system
+ * file descriptor limits and try to expend it if necessary.
+ */
 static int ovl_open_dirs(void)
 {
 	unsigned int i;
@@ -116,7 +119,7 @@ err:
 	return -1;
 }
 
-/* Cleanup underlying directories buffer */
+/* Cleanup underlying directories buffers */
 static void ovl_clean_dirs(void)
 {
 	int i;
@@ -163,6 +166,7 @@ static void usage(void)
 	exit(1);
 }
 
+/* Parse options from user and check correctness */
 static void parse_options(int argc, char *argv[])
 {
 	struct ovl_config config = {0};
@@ -250,6 +254,7 @@ err_out:
 	exit(1);
 }
 
+/* Check file system status after fsck and return the exit value */
 static void fsck_status_report(int *exit)
 {
 	if (status & OVL_ST_INCONSISTNECY) {

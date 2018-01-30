@@ -69,6 +69,15 @@ int ask_question(const char *question, int def)
 	return ask_yn(question, def);
 }
 
+/*
+ * Get the value of the specified xattr
+ *
+ * @dirfd: base dir fd for relative pathname
+ * @value: xattr value, can be NULL if empty value
+ * @exit: xattr exit or not
+ *
+ * Return: a nonnegative value on success, -1 otherwise
+ */
 ssize_t get_xattr(int dirfd, const char *pathname, const char *xattrname,
 		  char **value, bool *exist)
 {
@@ -118,6 +127,13 @@ fail:
 	goto out;
 }
 
+/*
+ * Set the value of the specified xattr
+ *
+ * @dirfd: base dir fd for relative pathname
+ * @value: xattr value, can be NULL if empty value
+ * @size: size of xattr value
+ */
 int set_xattr(int dirfd, const char *pathname, const char *xattrname,
 	      void *value, size_t size)
 {
@@ -150,6 +166,7 @@ fail:
 	goto out;
 }
 
+/* Remove the specified xattr */
 int remove_xattr(int dirfd, const char *pathname, const char *xattrname)
 {
 	int fd;
@@ -185,7 +202,10 @@ static inline int scan_check_entry(int (*do_check)(struct scan_ctx *),
 	return do_check ? do_check(sctx) : 0;
 }
 
-/* Scan specified directories and invoke callback */
+/*
+ * Scan specified directories and invoke callback to check/fix underlying
+ * dirs of overlay filesystem
+ */
 int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 {
 	char *paths[2] = {(char *)sctx->dirname, NULL};
