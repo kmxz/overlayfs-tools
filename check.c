@@ -904,19 +904,26 @@ static void ovl_scan_report(struct scan_ctx *sctx)
 /* Report the invalid targets left */
 static void ovl_scan_check(struct scan_ctx *sctx)
 {
-	if (sctx->i_whiteouts)
+	bool inconsistency = false;
+
+	if (sctx->i_whiteouts) {
 		print_info(_("Invalid whiteouts %d left!\n"),
 			     sctx->i_whiteouts);
-	else if (sctx->i_redirects)
+		inconsistency = true;
+	}
+	if (sctx->i_redirects) {
 		print_info(_("Invalid redirect directories %d left!\n"),
 			     sctx->i_redirects);
-	else if (sctx->m_impure)
+		inconsistency = true;
+	}
+	if (sctx->m_impure) {
 		print_info(_("Directories %d missing impure xattr!\n"),
 			     sctx->m_impure);
-	else
-		return;
+		inconsistency = true;
+	}
 
-	set_inconsistency(&status);
+	if (inconsistency)
+		set_inconsistency(&status);
 }
 
 /* Scan upperdir and each lowerdirs, check and fix inconsistency */
