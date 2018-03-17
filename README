@@ -99,11 +99,21 @@ Usage
    32     Checking canceled by user request
    128    Shared-library error
 
-Note:
+Note
+====
+
 1. It is strongly recommend to run this program after modifing underlying
    directories while overlay filesystem is offline.
 2. Enough file descriptors (more than the number of specified underlying
    directories) are required to run this program.
+
+No Support
+==========
+
+Current version cannot support overlayfs which was mounted with new
+features introduced in Linux kernel >= 4.13, include index, nfs_export
+and other upcoming features. Checking overlayfs which has these features
+may lead to inconsistency.
 
 Contributions
 =============

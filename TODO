@@ -4,7 +4,7 @@ Todo list
 Common
 ------
 
-1. Overlay filesystem mounted check
+1. Overlay filesystem mounted check	---doing
 Prevent fscking when overlay is online. Now, we cannot distinguish mounted
 directories if overlayfs was mounted with relative path. Should modify
 Linux kernel together to support.
@@ -28,12 +28,29 @@ Export the optionally fsck log and results to the system log subsystem.
 Features
 --------
 
-1. Check origin xattr   --- doing
+1. overaly filesystem feature set support	---doing
+Current fsck do not support new features introduced in >= Linux kernel
+4.13, such as index and nfs_export features, but fsck cannot detect
+unknown features in the underlying dirs itself, so in order to avoid
+corrupting overlayfs which has unknown feature when reparing the
+underlying layers, fsck.overlay need to support "feature set" and
+refuse checking overlayfs if unknown feature detected.
+
+2. Remove and fallback overlay feature	---doing
+User can add some overlayfs features through mount options, but cannot
+remove any feature once it was enabled. If user mounting an overlay
+which has backward compatible fearures on a kernel that doesn't support
+these features will lead to unexpected results, so we need to introduce
+this "feature conversion" feature into fsck.overlay. If user give option
+"-o xxx=off" (e.g. redirect_dir=off) when running fsck.overlay, it will
+remove the specified feature and make sure consistency.
+
+3. Check origin xattr	--- doing
 Check basic elements in the origin xattr, verify it's corrupt or not, and
 decode the file handle to check the corresponding origin target... Should
 ask user to remove the corrupt and stale origin xattr.
 
-2. Check index dir when "index=on"
+4. Check index dir when "index=on"
 1) Verify the origin xattr in the index dir, it should match the upper
    root dir.
 2) Check index files (not dir and whiteout) in the index dir, check
@@ -41,7 +58,7 @@ ask user to remove the corrupt and stale origin xattr.
    and check the nlink... Should ask user to remove the corrupt, stale
    and orphan index file.
 
-3. Check index dir when "nfs_export=on" (depend on "index=on")
+5. Check index dir when "nfs_export=on" (depend on "index=on")
 1) Verify the 'upper' xattr in the index dir. Encode the upper root dir
    and compare with the file handle in the 'upper' xattr...
 2) Check index-dirs in the index dir, check dirname and decode the
