@@ -729,6 +729,7 @@ static int ovl_check_redirect(struct scan_ctx *sctx)
 				ret = ovl_set_opaque(sctx->dirfd, redirect);
 				if (ret)
 					goto out;
+				sctx->i_redirects--;
 			} else {
 				goto out;
 			}
