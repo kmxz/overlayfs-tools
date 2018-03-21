@@ -16,6 +16,7 @@
 #include <linux/stat.h>
 #include "logic.h"
 #include "sh.h"
+#include "config.h"
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
 

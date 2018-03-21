@@ -19,7 +19,9 @@ To build it, you must have libattr headers installed. The package is usually nam
 
 Then, you just build this program:
 
-    $ make
+    $ cd build
+    $ ../configure
+    $ make && make install
 
 Example usage
 --------
