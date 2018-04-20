@@ -78,12 +78,6 @@ struct ovl_redirect_entry {
 #define WHITEOUT_DEV	0
 #define WHITEOUT_MOD	0
 
-extern char **lowerdir;
-extern char *upperdir;
-extern char *workdir;
-extern int *lowerfd;
-extern int upperfd;
-extern int lower_num;
 extern int flags;
 extern int status;
 
@@ -318,8 +312,10 @@ out:
  * directories and check directory type, following redirect directory and
  * terminate scan if there is a file or an opaque directory exists.
  */
-static int ovl_lookup_lower(const char *pathname, int dirtype,
-			    int start, struct ovl_lookup_data *od)
+static int ovl_lookup_lower(const struct ovl_fs * ofs,
+			    const char *pathname,
+			    int dirtype, int start,
+			    struct ovl_lookup_data *od)
 {
 	struct ovl_lookup_ctx lctx = {0};
 	int i;
@@ -329,7 +325,7 @@ static int ovl_lookup_lower(const char *pathname, int dirtype,
 		start = 0;
 
 	if (dirtype == OVL_UPPER) {
-		lctx.dirfd = upperfd;
+		lctx.dirfd = ofs->upper_layer.fd;
 		lctx.pathname = pathname;
 		lctx.skip = true;
 
@@ -338,11 +334,11 @@ static int ovl_lookup_lower(const char *pathname, int dirtype,
 			goto out;
 	}
 
-	for (i = start; !lctx.stop && i < lower_num; i++) {
-		lctx.dirfd = lowerfd[i];
+	for (i = start; !lctx.stop && i < ofs->lower_num; i++) {
+		lctx.dirfd = ofs->lower_layer[i].fd;
 		lctx.pathname = (lctx.redirect) ? lctx.redirect : pathname;
 		lctx.skip = (dirtype == OVL_LOWER && i == start) ? true : false;
-		lctx.last = (i == lower_num - 1) ? true : false;
+		lctx.last = (i == ofs->lower_num - 1) ? true : false;
 
 		ret = ovl_lookup_layer(&lctx);
 		if (ret)
@@ -367,17 +363,17 @@ out:
  * The same as ovl_lookup_lower() except start from the layer of 'start',
  * not skip any target founded.
  */
-static int ovl_lookup(const char *pathname, int start,
-		      struct ovl_lookup_data *od)
+static int ovl_lookup(const struct ovl_fs *ofs, const char *pathname,
+		      int start, struct ovl_lookup_data *od)
 {
 	struct ovl_lookup_ctx lctx = {0};
 	int i;
 	int ret = 0;
 
-	for (i = start; !lctx.stop && i < lower_num; i++) {
-		lctx.dirfd = lowerfd[i];
+	for (i = start; !lctx.stop && i < ofs->lower_num; i++) {
+		lctx.dirfd = ofs->lower_layer[i].fd;
 		lctx.pathname = (lctx.redirect) ? lctx.redirect : pathname;
-		lctx.last = (i == lower_num - 1) ? true : false;
+		lctx.last = (i == ofs->lower_num - 1) ? true : false;
 
 		ret = ovl_lookup_layer(&lctx);
 		if (ret)
@@ -406,6 +402,8 @@ out:
 static int ovl_check_whiteout(struct scan_ctx *sctx)
 {
 	const char *pathname = sctx->pathname;
+	const struct ovl_fs *ofs = sctx->ofs;
+	const struct ovl_layer *layer = sctx->layer;
 	const struct stat *st = sctx->st;
 	struct ovl_lookup_data od = {0};
 	int ret = 0;
@@ -414,17 +412,18 @@ static int ovl_check_whiteout(struct scan_ctx *sctx)
 	if (!is_whiteout(st))
 		return 0;
 
-	sctx->t_whiteouts++;
+	sctx->result.t_whiteouts++;
 
 	/* Is whiteout in the bottom lower dir ? */
-	if (sctx->dirtype == OVL_LOWER && sctx->stack == lower_num-1)
+	if (layer->type == OVL_LOWER && layer->stack == ofs->lower_num-1)
 		goto remove;
 
 	/*
 	 * Scan each corresponding lower directroy under this layer,
 	 * check is there a file or dir with the same name.
 	 */
-	ret = ovl_lookup_lower(pathname, sctx->dirtype, sctx->stack, &od);
+	ret = ovl_lookup_lower(ofs, pathname, layer->type,
+			       layer->stack, &od);
 	if (ret)
 		goto out;
 
@@ -432,21 +431,21 @@ static int ovl_check_whiteout(struct scan_ctx *sctx)
 		goto out;
 
 remove:
-	sctx->i_whiteouts++;
+	sctx->result.i_whiteouts++;
 
 	/* Remove orphan whiteout directly or ask user */
-	if (!ovl_ask_action("Orphan whiteout", pathname, sctx->dirtype,
-			    sctx->stack, "Remove", 1))
+	if (!ovl_ask_action("Orphan whiteout", pathname, layer->type,
+			    layer->stack, "Remove", 1))
 		return 0;
 
-	ret = unlinkat(sctx->dirfd, pathname, 0);
+	ret = unlinkat(layer->fd, pathname, 0);
 	if (ret) {
 		print_err(_("Cannot unlink %s: %s\n"), pathname,
 			    strerror(errno));
 		goto out;
 	}
-	sctx->t_whiteouts--;
-	sctx->i_whiteouts--;
+	sctx->result.t_whiteouts--;
+	sctx->result.i_whiteouts--;
 out:
 	return ret;
 }
@@ -582,16 +581,18 @@ static void ovl_redirect_free(void)
  * merge dir and duplicate with another recirect xattr already
  * checked, so iterate the list to recheck them.
  */
-static int ovl_do_remove_redirect(int dirfd, const char *pathname,
-				  int dirtype, int stack,
-				  int *total, int *invalid)
+static int ovl_do_remove_redirect(const struct ovl_fs *ofs,
+				  const struct ovl_layer *layer,
+				  const char *pathname,
+				  int *total,
+				  int *invalid)
 {
 	struct ovl_lookup_data od = {0};
 	int du_dirtype, du_stack;
 	char *duplicate;
 	int ret;
 
-	ret = ovl_remove_redirect(dirfd, pathname);
+	ret = ovl_remove_redirect(layer->fd, pathname);
 	if (ret)
 		goto out;
 
@@ -599,7 +600,8 @@ static int ovl_do_remove_redirect(int dirfd, const char *pathname,
 	(*invalid)--;
 
 	/* If lower corresponding dir exists, ask user to set opaque */
-	ret = ovl_lookup_lower(pathname, dirtype, stack, &od);
+	ret = ovl_lookup_lower(ofs, pathname, layer->type,
+			       layer->stack, &od);
 	if (ret)
 		goto out;
 
@@ -607,8 +609,8 @@ static int ovl_do_remove_redirect(int dirfd, const char *pathname,
 		goto out;
 
 	if (ovl_ask_question("Should set opaque dir", pathname,
-			     dirtype, stack, 0)) {
-		ret = ovl_set_opaque(dirfd, pathname);
+			     layer->type, layer->stack, 0)) {
+		ret = ovl_set_opaque(layer->fd, pathname);
 		goto out;
 	}
 
@@ -618,13 +620,13 @@ static int ovl_do_remove_redirect(int dirfd, const char *pathname,
 		 * The redirect dir point to the same lower origin becomes
 		 * duplicate, should re-ask
 		 */
-		if ((du_dirtype == dirtype) && (du_stack == stack) &&
+		if ((du_dirtype == layer->type) && (du_stack == layer->stack) &&
 		    ovl_ask_action("Duplicate redirect directory",
                                    duplicate, du_dirtype, du_stack,
                                    "Remove redirect", 0)) {
 			(*invalid)++;
-			ret = ovl_do_remove_redirect(dirfd, duplicate, dirtype,
-						     stack, total, invalid);
+			ret = ovl_do_remove_redirect(ofs, layer, duplicate,
+						     total, invalid);
 			if (ret)
 				goto out;
 
@@ -652,6 +654,8 @@ out:
 static int ovl_check_redirect(struct scan_ctx *sctx)
 {
 	const char *pathname = sctx->pathname;
+	const struct ovl_fs *ofs = sctx->ofs;
+	const struct ovl_layer *layer = sctx->layer;
 	struct ovl_lookup_data od = {0};
 	struct stat cover_st;
 	bool cover_exist = false;
@@ -660,34 +664,34 @@ static int ovl_check_redirect(struct scan_ctx *sctx)
 	int ret;
 
 	/* Get redirect */
-	ret = ovl_get_redirect(sctx->dirfd, pathname, &redirect);
+	ret = ovl_get_redirect(layer->fd, pathname, &redirect);
 	if (ret || !redirect)
 		return ret;
 
 	print_debug(_("Dir \"%s\" has redirect \"%s\"\n"), pathname, redirect);
-	sctx->t_redirects++;
+	sctx->result.t_redirects++;
 
 	/* Redirect dir in last lower dir ? */
-	if (sctx->dirtype == OVL_LOWER && sctx->stack == lower_num-1)
+	if (layer->type == OVL_LOWER && layer->stack == ofs->lower_num-1)
 		goto remove;
 
 	/* Scan lower directories to check redirect dir exist or not */
-	start = (sctx->dirtype == OVL_LOWER) ? sctx->stack + 1 : 0;
-	ret = ovl_lookup(redirect, start, &od);
+	start = (layer->type == OVL_LOWER) ? layer->stack + 1 : 0;
+	ret = ovl_lookup(ofs, redirect, start, &od);
 	if (ret)
 		goto out;
 
 	if (od.exist && is_dir(&od.st)) {
 		/* Check duplicate with another redirect dir */
 		if (ovl_redirect_is_duplicate(od.pathname, od.stack)) {
-			sctx->i_redirects++;
+			sctx->result.i_redirects++;
 
 			/*
 			 * Not sure which one is invalid, don't remove in
 			 * auto mode
 			 */
 			if (ovl_ask_action("Duplicate redirect directory",
-					   pathname, sctx->dirtype, sctx->stack,
+					   pathname, layer->type, layer->stack,
 					   "Remove redirect", 0))
 				goto remove_d;
 			else
@@ -695,64 +699,64 @@ static int ovl_check_redirect(struct scan_ctx *sctx)
 		}
 
 		/* Check duplicate with merge dir */
-		ret = ovl_lookup_single(sctx->dirfd, redirect, &cover_st,
+		ret = ovl_lookup_single(layer->fd, redirect, &cover_st,
 					&cover_exist);
 		if (ret)
 			goto out;
 		if (!cover_exist) {
 			/* Found nothing, create a whiteout */
 			if (ovl_ask_action("Missing whiteout", pathname,
-					   sctx->dirtype, sctx->stack,
+					   layer->type, layer->stack,
 					   "Add", 1)) {
-				ret = ovl_create_whiteout(sctx->dirfd, redirect);
+				ret = ovl_create_whiteout(layer->fd, redirect);
 				if (ret)
 					goto out;
 
-				sctx->t_whiteouts++;
+				sctx->result.t_whiteouts++;
 			}
 		} else if (is_dir(&cover_st) &&
-			   !ovl_is_opaque(sctx->dirfd, redirect) &&
-			   !ovl_is_redirect(sctx->dirfd, redirect)) {
+			   !ovl_is_opaque(layer->fd, redirect) &&
+			   !ovl_is_redirect(layer->fd, redirect)) {
 			/*
 			 * Found a directory merge with the same origin,
 			 * ask user to remove this duplicate redirect xattr
 			 * or set opaque to the cover directory
 			 */
-			sctx->i_redirects++;
+			sctx->result.i_redirects++;
 			if (ovl_ask_action("Duplicate redirect directory",
-					   pathname, sctx->dirtype, sctx->stack,
+					   pathname, layer->type, layer->stack,
 					   "Remove redirect", 0)) {
 				goto remove_d;
 			} else if (ovl_ask_question("Should set opaque dir",
-						    redirect, sctx->dirtype,
-						    sctx->stack, 0)) {
-				ret = ovl_set_opaque(sctx->dirfd, redirect);
+						    redirect, layer->type,
+						    layer->stack, 0)) {
+				ret = ovl_set_opaque(layer->fd, redirect);
 				if (ret)
 					goto out;
-				sctx->i_redirects--;
+				sctx->result.i_redirects--;
 			} else {
 				goto out;
 			}
 		}
 
 		/* Now, this redirect xattr is valid */
-		ovl_redirect_entry_add(pathname, sctx->dirtype, sctx->stack,
+		ovl_redirect_entry_add(pathname, layer->type, layer->stack,
 				       od.pathname, od.stack);
 
 		goto out;
 	}
 
 remove:
-	sctx->i_redirects++;
+	sctx->result.i_redirects++;
 
 	/* Remove redirect xattr or ask user */
-	if (!ovl_ask_action("Invalid redirect directory", pathname, sctx->dirtype,
-			    sctx->stack, "Remove redirect", 1))
+	if (!ovl_ask_action("Invalid redirect directory", pathname, layer->type,
+			    layer->stack, "Remove redirect", 1))
 		goto out;
 remove_d:
-	ret = ovl_do_remove_redirect(sctx->dirfd, pathname, sctx->dirtype,
-				     sctx->stack, &sctx->t_redirects,
-				     &sctx->i_redirects);
+	ret = ovl_do_remove_redirect(ofs, layer, pathname,
+				     &sctx->result.t_redirects,
+				     &sctx->result.i_redirects);
 out:
 	free(redirect);
 	return ret;
@@ -771,6 +775,7 @@ out:
  */
 static int ovl_check_impure(struct scan_ctx *sctx)
 {
+	const struct ovl_layer *layer = sctx->layer;
 	struct scan_dir_data *dirdata = sctx->dirdata;
 
 	if (!dirdata)
@@ -784,13 +789,13 @@ static int ovl_check_impure(struct scan_ctx *sctx)
 	    !dirdata->redirects)
 		return 0;
 
-	if (ovl_is_impure(sctx->dirfd, sctx->pathname))
+	if (ovl_is_impure(layer->fd, sctx->pathname))
 		return 0;
 
 	/* Fix impure xattrs */
 	if (ovl_ask_action("Missing impure xattr", sctx->pathname,
-			   sctx->dirtype, sctx->stack, "Fix", 1)) {
-		if (ovl_set_impure(sctx->dirfd, sctx->pathname))
+			   layer->type, layer->stack, "Fix", 1)) {
+		if (ovl_set_impure(layer->fd, sctx->pathname))
 			return -1;
 	} else {
 		/*
@@ -800,20 +805,21 @@ static int ovl_check_impure(struct scan_ctx *sctx)
 		 * filesystem after mount.
 		 */
 		if (dirdata->origins || dirdata->redirects)
-			sctx->m_impure++;
+			sctx->result.m_impure++;
 	}
 
 	return 0;
 }
 
-static inline bool ovl_is_merge(int dirfd, const char *pathname,
-                               int dirtype, int stack)
+static inline bool ovl_is_merge(const struct ovl_fs *ofs,
+				const struct ovl_layer *layer,
+				const char *pathname)
 {
 	struct ovl_lookup_data od = {0};
 
-	if (ovl_is_opaque(dirfd, pathname))
+	if (ovl_is_opaque(layer->fd, pathname))
 		return false;
-	if (ovl_lookup_lower(pathname, dirtype, stack, &od))
+	if (ovl_lookup_lower(ofs, pathname, layer->type, layer->stack, &od))
 		return false;
 	if (od.exist && is_dir(&od.st))
 		return true;
@@ -827,19 +833,20 @@ static inline bool ovl_is_merge(int dirfd, const char *pathname,
  */
 static int ovl_count_impurity(struct scan_ctx *sctx)
 {
+	const struct ovl_fs *ofs = sctx->ofs;
+	const struct ovl_layer *layer = sctx->layer;
 	struct scan_dir_data *parent = sctx->dirdata;
 
 	if (!parent)
 		return 0;
 
-	if (ovl_is_origin(sctx->dirfd, sctx->pathname))
+	if (ovl_is_origin(layer->fd, sctx->pathname))
 		parent->origins++;
 
 	if (is_dir(sctx->st)) {
-		if (ovl_is_redirect(sctx->dirfd, sctx->pathname))
+		if (ovl_is_redirect(layer->fd, sctx->pathname))
 			parent->redirects++;
-		if (ovl_is_merge(sctx->dirfd, sctx->pathname,
-				 sctx->dirtype, sctx->stack))
+		if (ovl_is_merge(ofs, layer, sctx->pathname))
 			parent->mergedirs++;
 	}
 
@@ -889,37 +896,37 @@ static void ovl_scan_clean(void)
 	ovl_redirect_free();
 }
 
-static void ovl_scan_report(struct scan_ctx *sctx)
+static void ovl_scan_report(struct scan_result *result)
 {
 	if (flags & FL_VERBOSE) {
 		print_info(_("Scan %d directories, %d files, "
 			     "%d/%d whiteouts, %d/%d redirect dirs "
 			     "%d missing impure\n"),
-			     sctx->directories, sctx->files,
-			     sctx->i_whiteouts, sctx->t_whiteouts,
-			     sctx->i_redirects, sctx->t_redirects,
-			     sctx->m_impure);
+			     result->directories, result->files,
+			     result->i_whiteouts, result->t_whiteouts,
+			     result->i_redirects, result->t_redirects,
+			     result->m_impure);
 	}
 }
 
 /* Report the invalid targets left */
-static void ovl_scan_check(struct scan_ctx *sctx)
+static void ovl_scan_check(struct scan_result *result)
 {
 	bool inconsistency = false;
 
-	if (sctx->i_whiteouts) {
+	if (result->i_whiteouts) {
 		print_info(_("Invalid whiteouts %d left!\n"),
-			     sctx->i_whiteouts);
+			     result->i_whiteouts);
 		inconsistency = true;
 	}
-	if (sctx->i_redirects) {
+	if (result->i_redirects) {
 		print_info(_("Invalid redirect directories %d left!\n"),
-			     sctx->i_redirects);
+			     result->i_redirects);
 		inconsistency = true;
 	}
-	if (sctx->m_impure) {
+	if (result->m_impure) {
 		print_info(_("Directories %d missing impure xattr!\n"),
-			     sctx->m_impure);
+			     result->m_impure);
 		inconsistency = true;
 	}
 
@@ -928,9 +935,9 @@ static void ovl_scan_check(struct scan_ctx *sctx)
 }
 
 /* Scan upperdir and each lowerdirs, check and fix inconsistency */
-int ovl_scan_fix(void)
+int ovl_scan_fix(struct ovl_fs *ofs)
 {
-	struct scan_ctx sctx = {0};
+	struct scan_ctx sctx = {.ofs = ofs};
 	int i,j;
 	int ret;
 
@@ -942,18 +949,14 @@ int ovl_scan_fix(void)
 		if (flags & FL_VERBOSE)
 			print_info(_("Pass %d: %s\n"), i, ovl_scan_desc[i]);
 
-		sctx.directories = 0;
-		sctx.files = 0;
+		sctx.result.directories = 0;
+		sctx.result.files = 0;
 
 		/* Scan every lower directories */
-		for (j = lower_num - 1; j >= 0; j--) {
+		for (j = ofs->lower_num - 1; j >= 0; j--) {
 			print_debug(_("Scan lower directory %d\n"), j);
 
-			sctx.dirname = lowerdir[j];
-			sctx.dirfd = lowerfd[j];
-			sctx.dirtype = OVL_LOWER;
-			sctx.stack = j;
-
+			sctx.layer = &ofs->lower_layer[j];
 			ret = scan_dir(&sctx, &ovl_scan_ops[i][OVL_LOWER]);
 			if (ret)
 				goto out;
@@ -963,21 +966,17 @@ int ovl_scan_fix(void)
 		if (flags & FL_UPPER) {
 			print_debug(_("Scan upper directory\n"));
 
-			sctx.dirname = upperdir;
-			sctx.dirfd = upperfd;
-			sctx.dirtype = OVL_UPPER;
-			sctx.stack = 0;
-
+			sctx.layer = &ofs->upper_layer;
 			ret = scan_dir(&sctx, &ovl_scan_ops[i][OVL_UPPER]);
 			if (ret)
 				goto out;
 		}
 
 		/* Check scan result for this pass */
-		ovl_scan_check(&sctx);
+		ovl_scan_check(&sctx.result);
 	}
 out:
-	ovl_scan_report(&sctx);
+	ovl_scan_report(&sctx.result);
 	ovl_scan_clean();
 	return ret;
 }

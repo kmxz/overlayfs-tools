@@ -191,7 +191,7 @@ int remove_xattr(int dirfd, const char *pathname, const char *xattrname)
 
 static void scan_entry_init(struct scan_ctx *sctx, FTSENT *ftsent)
 {
-	sctx->pathname = basename2(ftsent->fts_path, sctx->dirname);
+	sctx->pathname = basename2(ftsent->fts_path, sctx->layer->path);
 	sctx->filename = ftsent->fts_name;
 	sctx->st = ftsent->fts_statp;
 }
@@ -208,7 +208,7 @@ static inline int scan_check_entry(int (*do_check)(struct scan_ctx *),
  */
 int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 {
-	char *paths[2] = {(char *)sctx->dirname, NULL};
+	char *paths[2] = {sctx->layer->path, NULL};
 	FTS *ftsp;
 	FTSENT *ftsent;
 	int ret = 0;
@@ -216,7 +216,7 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 	ftsp = fts_open(paths, FTS_NOCHDIR | FTS_PHYSICAL, NULL);
 	if (ftsp == NULL) {
 		print_err(_("Failed to fts open %s:%s\n"),
-			    sctx->dirname, strerror(errno));
+			    sctx->layer->path, strerror(errno));
 		return -1;
 	}
 
@@ -234,11 +234,11 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 			      (ftsent->fts_info == FTS_SLNONE) ? "sln" :
 			      (ftsent->fts_info == FTS_DEFAULT) ? "df" : "???",
 			      ftsent->fts_level, ftsent->fts_statp->st_size,
-			      ftsent->fts_path, sctx->pathname);
+			      ftsent->fts_path, sctx->layer->path);
 
 		switch (ftsent->fts_info) {
 		case FTS_F:
-			sctx->files++;
+			sctx->result.files++;
 
 			/* Check impurities */
 			ret = scan_check_entry(sop->impurity, sctx);
@@ -252,7 +252,7 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 				goto out;
 			break;
 		case FTS_D:
-			sctx->directories++;
+			sctx->result.directories++;
 
 			/* Check redirect xattr */
 			ret = scan_check_entry(sop->redirect, sctx);
