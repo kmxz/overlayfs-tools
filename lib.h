@@ -52,12 +52,16 @@
 #define OVL_WORKER	2
 #define OVL_PTYPE_MAX	3
 
+/* Scan layer flag */
+#define FS_LAYER_RO	(1 << 0)	/* layer is read-only */
+
 /* Information for each underlying layer */
 struct ovl_layer {
 	char *path;		/* root dir path for this layer */
 	int fd;			/* root dir fd for this layer */
 	int type;		/* OVL_UPPER or OVL_LOWER */
 	int stack;		/* lower layer stack number, OVL_LOWER use only */
+	int flag;		/* special flag for this layer */
 };
 
 /* Information for the whole overlay filesystem */
