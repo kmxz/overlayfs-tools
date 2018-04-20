@@ -32,6 +32,7 @@
 #include <linux/limits.h>
 
 #include "common.h"
+#include "lib.h"
 #include "config.h"
 #include "check.h"
 #include "mount.h"
@@ -46,11 +47,6 @@ struct ovl_mnt_entry {
 
 /* Mount buf allocate a time */
 #define ALLOC_NUM	16
-
-extern char **lowerdir;
-extern char *upperdir;
-extern char *workdir;
-extern int lower_num;
 
 /* Resolve each lower directories and check the validity */
 static int ovl_resolve_lowerdirs(char *loweropt, char ***lowerdir,
@@ -276,7 +272,7 @@ static void ovl_scan_mount_exit(struct ovl_mnt_entry *ovl_mnt_entries,
  * FIXME: We cannot distinguish mounted directories if overlayfs was
  *        mounted use relative path, so there may have misjudgment.
  */
-int ovl_check_mount(bool *mounted)
+int ovl_check_mount(struct ovl_fs *ofs, bool *mounted)
 {
 	struct ovl_mnt_entry *ovl_mnt_entries = NULL;
 	int ovl_mnt_entry_count = 0;
@@ -292,10 +288,10 @@ int ovl_check_mount(bool *mounted)
 	for (i = 0; i < ovl_mnt_entry_count; i++) {
 		/* Check lower */
 		for (j = 0; j < ovl_mnt_entries[i].lowernum; j++) {
-			for (k = 0; k < lower_num; k++) {
-				if (!strcmp(lowerdir[k],
+			for (k = 0; k < ofs->lower_num; k++) {
+				if (!strcmp(ofs->lower_layer[k].path,
 					    ovl_mnt_entries[i].lowerdir[j])) {
-					mounted_path = lowerdir[k];
+					mounted_path = ofs->lower_layer[k].path;
 					*mounted = true;
 					goto out;
 				}
@@ -303,17 +299,17 @@ int ovl_check_mount(bool *mounted)
 		}
 
 		/* Check upper */
-		if (upperdir && ovl_mnt_entries[i].upperdir &&
-		    !(strcmp(upperdir, ovl_mnt_entries[i].upperdir))) {
-			mounted_path = upperdir;
+		if (ofs->upper_layer.path && ovl_mnt_entries[i].upperdir &&
+		    !(strcmp(ofs->upper_layer.path, ovl_mnt_entries[i].upperdir))) {
+			mounted_path = ofs->upper_layer.path;
 			*mounted = true;
 			goto out;
 		}
 
 		/* Check worker */
-		if (workdir && ovl_mnt_entries[i].workdir &&
-		    !(strcmp(workdir, ovl_mnt_entries[i].workdir))) {
-			mounted_path = workdir;
+		if (ofs->workdir.path && ovl_mnt_entries[i].workdir &&
+		    !(strcmp(ofs->workdir.path, ovl_mnt_entries[i].workdir))) {
+			mounted_path = ofs->workdir.path;
 			*mounted = true;
 			goto out;
 		}

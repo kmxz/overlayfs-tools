@@ -20,6 +20,6 @@
 #define OVL_WHITECHECK_H
 
 /* Scan upperdir and each lowerdirs, check and fix inconsistency */
-int ovl_scan_fix(void);
+int ovl_scan_fix(struct ovl_fs *ofs);
 
 #endif /* OVL_WHITECHECK_H */

@@ -29,6 +29,6 @@ void ovl_parse_opt(char *opt, struct ovl_config *config);
 void ovl_free_opt(struct ovl_config *config);
 int ovl_get_dirs(struct ovl_config *config, char ***lowerdir,
 		 int *lowernum, char **upperdir, char **workdir);
-int ovl_check_mount(bool *mounted);
+int ovl_check_mount(struct ovl_fs *ofs, bool *mounted);
 
 #endif /* OVL_MOUNT_H */

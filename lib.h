@@ -51,6 +51,21 @@
 #define OVL_WORKER	2
 #define OVL_PTYPE_MAX	3
 
+/* Information for each underlying layer */
+struct ovl_layer {
+	char *path;		/* root dir path for this layer */
+	int fd;			/* root dir fd for this layer */
+	int type;		/* OVL_UPPER or OVL_LOWER */
+	int stack;		/* lower layer stack number, OVL_LOWER use only */
+};
+
+/* Information for the whole overlay filesystem */
+struct ovl_fs {
+	struct ovl_layer upper_layer;
+	struct ovl_layer *lower_layer;
+	int lower_num;
+	struct ovl_layer workdir;
+};
 
 /* Directories scan data structs */
 struct scan_dir_data {
@@ -59,12 +74,7 @@ struct scan_dir_data {
        int redirects;		/* redirect subdir number in this directory (no iterate) */
 };
 
-struct scan_ctx {
-	const char *dirname;	/* overlay base dir */
-	int dirfd;		/* dir descriptor */
-	int dirtype;		/* OVL_UPPER or OVL_LOWER */
-	int stack;		/* lower depth, OVL_LOWER use only */
-
+struct scan_result {
 	int files;		/* total files */
 	int directories;	/* total directories */
 	int t_whiteouts;	/* total whiteouts */
@@ -72,6 +82,12 @@ struct scan_ctx {
 	int t_redirects;	/* total redirect dirs */
 	int i_redirects;	/* invalid redirect dirs */
 	int m_impure;		/* missing inpure dirs */
+};
+
+struct scan_ctx {
+	struct ovl_fs *ofs;		/* scan ovl fs */
+	struct ovl_layer *layer;	/* scan layer */
+	struct scan_result result;	/* scan count result */
 
 	const char *pathname;	/* path relative to overlay root */
 	const char *filename;	/* filename */

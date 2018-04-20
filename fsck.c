@@ -44,13 +44,7 @@
 
 char *program_name;
 
-char *lowerdirs = NULL;
-char **lowerdir = NULL;
-char *upperdir = NULL;
-char *workdir = NULL;
-int *lowerfd = NULL;
-int upperfd = 0;
-int lower_num = 0;
+struct ovl_fs ofs = {};
 int flags = 0;		/* user input option flags */
 int status = 0;		/* fsck scan status */
 
@@ -58,11 +52,11 @@ int status = 0;		/* fsck scan status */
  * Open underlying dirs (include upper dir and lower dirs), check system
  * file descriptor limits and try to expend it if necessary.
  */
-static int ovl_open_dirs(void)
+static int ovl_open_dirs(struct ovl_fs *ofs)
 {
 	unsigned int i;
 	struct rlimit rlim;
-	rlim_t rlim_need = lower_num + 20;
+	rlim_t rlim_need = ofs->lower_num + 20;
 
 	/* If RLIMIT_NOFILE limit is small than we need, try to expand limit */
 	if ((getrlimit(RLIMIT_NOFILE, &rlim))) {
@@ -85,23 +79,22 @@ static int ovl_open_dirs(void)
 		}
 	}
 
-	if (flags & FL_UPPER) {
-		upperfd = open(upperdir,
+	if (ofs->upper_layer.path) {
+		ofs->upper_layer.fd = open(ofs->upper_layer.path,
 			       O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC);
-		if (upperfd < 0) {
-			print_err(_("Failed to open %s:%s\n"), upperdir,
-				    strerror(errno));
+		if (ofs->upper_layer.fd < 0) {
+			print_err(_("Failed to open %s:%s\n"),
+				    ofs->upper_layer.path, strerror(errno));
 			return -1;
 		}
 	}
 
-	lowerfd = smalloc(lower_num * sizeof(int));
-	for (i = 0; i < lower_num; i++) {
-		lowerfd[i] = open(lowerdir[i],
+	for (i = 0; i < ofs->lower_num; i++) {
+		ofs->lower_layer[i].fd = open(ofs->lower_layer[i].path,
 				  O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC);
-		if (lowerfd[i] < 0) {
+		if (ofs->lower_layer[i].fd < 0) {
 			print_err(_("Failed to open %s:%s\n"),
-				    lowerdir[i], strerror(errno));
+				    ofs->lower_layer[i].path, strerror(errno));
 			goto err;
 		}
 	}
@@ -109,44 +102,40 @@ static int ovl_open_dirs(void)
 	return 0;
 err:
 	for (i--; i >= 0; i--) {
-		close(lowerfd[i]);
-		lowerfd[i] = 0;
+		close(ofs->lower_layer[i].fd);
+		ofs->lower_layer[i].fd = 0;
 	}
-	free(lowerfd);
-	lowerfd = NULL;
-	close(upperfd);
-	upperfd = 0;
+	close(ofs->upper_layer.fd);
+	ofs->upper_layer.fd = 0;
 	return -1;
 }
 
 /* Cleanup underlying directories buffers */
-static void ovl_clean_dirs(void)
+static void ovl_clean_dirs(struct ovl_fs *ofs)
 {
 	int i;
 
-	for (i = 0; i < lower_num; i++) {
-		if (lowerfd && lowerfd[i]) {
-			close(lowerfd[i]);
-			lowerfd[i] = 0;
+	for (i = 0; i < ofs->lower_num; i++) {
+		if (ofs->lower_layer && ofs->lower_layer[i].fd) {
+			close(ofs->lower_layer[i].fd);
+			ofs->lower_layer[i].fd = 0;
 		}
-		free(lowerdir[i]);
-		lowerdir[i] = NULL;
+		free(ofs->lower_layer[i].path);
+		ofs->lower_layer[i].path = NULL;
 	}
-	free(lowerfd);
-	lowerfd = NULL;
-	free(lowerdir);
-	lowerdir = NULL;
-	lower_num = 0;
+	free(ofs->lower_layer);
+	ofs->lower_layer = NULL;
+	ofs->lower_num = 0;
 
-	if (flags & FL_UPPER) {
-		close(upperfd);
-		upperfd = 0;
-		free(upperdir);
-		upperdir = NULL;
+	if (ofs->upper_layer.path) {
+		close(ofs->upper_layer.fd);
+		ofs->upper_layer.fd = 0;
+		free(ofs->upper_layer.path);
+		ofs->upper_layer.path = NULL;
 	}
 	if (flags & FL_WORK) {
-		free(workdir);
-		workdir = NULL;
+		free(ofs->workdir.path);
+		ofs->workdir.path = NULL;
 	}
 }
 
@@ -171,7 +160,8 @@ static void parse_options(int argc, char *argv[])
 {
 	struct ovl_config config = {0};
 	char *ovl_opts = NULL;
-	int c;
+	int i, c;
+	char **lowerdir = NULL;
 	bool conflict = false;
 
 	struct option long_options[] = {
@@ -222,34 +212,52 @@ static void parse_options(int argc, char *argv[])
 	}
 
 	/* Resolve and get each underlying directory of overlay filesystem */
-	ovl_get_dirs(&config, &lowerdir, &lower_num, &upperdir, &workdir);
-	if (upperdir)
-		flags |= FL_UPPER;
-	if (workdir)
-		flags |= FL_WORK;
-
-	if (!lower_num || (!(flags & FL_UPPER) && lower_num == 1)) {
-		print_info(_("Please specify correct lowerdirs and upperdir!\n\n"));
+	if (ovl_get_dirs(&config, &lowerdir, &ofs.lower_num,
+			 &ofs.upper_layer.path, &ofs.workdir.path))
 		goto err_out;
+
+	ofs.lower_layer = smalloc(ofs.lower_num * sizeof(struct ovl_layer));
+	for (i = 0; i < ofs.lower_num; i++) {
+		ofs.lower_layer[i].path = lowerdir[i];
+		ofs.lower_layer[i].type = OVL_LOWER;
+		ofs.lower_layer[i].stack = i;
+	}
+	if (ofs.upper_layer.path) {
+		ofs.upper_layer.type = OVL_UPPER;
+		flags |= FL_UPPER;
+	}
+	if (ofs.workdir.path) {
+		ofs.workdir.type = OVL_WORKER;
+		flags |= FL_WORK;
 	}
 
-	if ((flags & FL_UPPER) && !(flags & FL_WORK)) {
+
+	if (!ofs.lower_num ||
+	    (!(flags & FL_UPPER) && ofs.lower_num == 1)) {
+		print_info(_("Please specify correct lowerdirs and upperdir!\n\n"));
+		goto err_out2;
+	}
+
+	if (ofs.upper_layer.path && !ofs.workdir.path) {
 		print_info(_("Please specify correct workdir!\n\n"));
-		goto err_out;
+		goto err_out2;
 	}
 
 	if (conflict) {
 		print_info(_("Only one of the options -p/-a, -n or -y "
 			     "can be specified!\n\n"));
-		goto err_out;
+		goto err_out2;
 	}
 
 	ovl_free_opt(&config);
+	free(lowerdir);
 	return;
 
-err_out:
+err_out2:
 	ovl_free_opt(&config);
-	ovl_clean_dirs();
+	ovl_clean_dirs(&ofs);
+	free(lowerdir);
+err_out:
 	usage();
 	exit(1);
 }
@@ -278,11 +286,11 @@ int main(int argc, char *argv[])
 	parse_options(argc, argv);
 
 	/* Open all specified base dirs */
-	if (ovl_open_dirs())
+	if (ovl_open_dirs(&ofs))
 		goto err;
 
 	/* Ensure overlay filesystem not mounted */
-	if (ovl_check_mount(&mounted))
+	if (ovl_check_mount(&ofs, &mounted))
 		goto err;
 
 	if (mounted && !(flags & FL_OPT_NO)) {
@@ -291,11 +299,11 @@ int main(int argc, char *argv[])
 	}
 
 	/* Scan and fix */
-	if (ovl_scan_fix())
+	if (ovl_scan_fix(&ofs))
 		goto err;
 
 out:
-	ovl_clean_dirs();
+	ovl_clean_dirs(&ofs);
 	fsck_status_report(&exit);
 	if (exit)
 		print_info("WARNING: Filesystem check failed, may not clean\n");
@@ -303,7 +311,6 @@ out:
 		print_info("Filesystem clean\n");
 
 	return exit;
-
 err:
 	exit |= FSCK_ERROR;
 	goto out;
