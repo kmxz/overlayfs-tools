@@ -34,6 +34,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#include <sys/vfs.h>
+#include <sys/statvfs.h>
 #include <linux/limits.h>
 
 #include "common.h"
@@ -137,6 +139,50 @@ static void ovl_clean_dirs(struct ovl_fs *ofs)
 		free(ofs->workdir.path);
 		ofs->workdir.path = NULL;
 	}
+}
+
+/* Do basic check for one layer */
+static int ovl_basic_check_layer(struct ovl_layer *layer)
+{
+	struct statfs statfs;
+	int err;
+
+	/* Check the underlying layer is read-only or not */
+	err = fstatfs(layer->fd, &statfs);
+	if (err) {
+		print_err(_("fstatfs failed:%s\n"), strerror(errno));
+		return -1;
+	}
+
+	if (statfs.f_flags & ST_RDONLY)
+		layer->flag |= FS_LAYER_RO;
+
+	return 0;
+}
+
+/*
+ * Do basic check for the underlying filesystem, refuse to do futher check
+ * if something wrong.
+ */
+static int ovl_basic_check(struct ovl_fs *ofs)
+{
+	int ret;
+
+	if (flags & FL_UPPER) {
+		ret = ovl_basic_check_layer(&ofs->upper_layer);
+		if (ret)
+			return ret;
+
+		/* Upper layer should read-write */
+		if ((ofs->upper_layer.flag & FS_LAYER_RO) &&
+		    !(flags & FL_OPT_NO)) {
+			print_info(_("Upper base filesystem is read-only, "
+				     "should be read-write\n"));
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 static void usage(void)
@@ -294,6 +340,10 @@ int main(int argc, char *argv[])
 		set_abort(&status);
 		goto out;
 	}
+
+	/* Do basic check */
+	if (ovl_basic_check(&ofs))
+		goto err;
 
 	/* Scan and fix */
 	if (ovl_scan_fix(&ofs))
