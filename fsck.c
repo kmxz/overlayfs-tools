@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/xattr.h>
 #include <sys/resource.h>
 #include <sys/vfs.h>
 #include <sys/statvfs.h>
@@ -145,6 +146,7 @@ static void ovl_clean_dirs(struct ovl_fs *ofs)
 static int ovl_basic_check_layer(struct ovl_layer *layer)
 {
 	struct statfs statfs;
+	ssize_t ret;
 	int err;
 
 	/* Check the underlying layer is read-only or not */
@@ -157,6 +159,15 @@ static int ovl_basic_check_layer(struct ovl_layer *layer)
 	if (statfs.f_flags & ST_RDONLY)
 		layer->flag |= FS_LAYER_RO;
 
+	/* Check the underlying layer support xattr or not */
+	ret = flistxattr(layer->fd, NULL, 0);
+	if (ret < 0 && errno != ENOTSUP) {
+		print_err(_("flistxattr failed:%s\n"), strerror(errno));
+		return -1;
+	} else if (ret >= 0) {
+		layer->flag |= FS_LAYER_XATTR;
+	}
+
 	return 0;
 }
 
@@ -167,6 +178,7 @@ static int ovl_basic_check_layer(struct ovl_layer *layer)
 static int ovl_basic_check(struct ovl_fs *ofs)
 {
 	int ret;
+	int i;
 
 	if (flags & FL_UPPER) {
 		ret = ovl_basic_check_layer(&ofs->upper_layer);
@@ -180,6 +192,12 @@ static int ovl_basic_check(struct ovl_fs *ofs)
 				     "should be read-write\n"));
 			return -1;
 		}
+	}
+
+	for (i = 0; i < ofs->lower_num; i++) {
+		ret = ovl_basic_check_layer(&ofs->lower_layer[i]);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
