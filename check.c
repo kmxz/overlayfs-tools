@@ -941,6 +941,8 @@ static int ovl_scan_layer(struct ovl_fs *ofs, struct ovl_layer *layer,
 {
 	struct scan_ctx sctx = {.ofs = ofs};
 	struct scan_operations ops = {};
+	char skip[256] = {0};
+	bool scan = false;
 	int ret;
 
 	if (flags & FL_VERBOSE)
@@ -951,22 +953,47 @@ static int ovl_scan_layer(struct ovl_fs *ofs, struct ovl_layer *layer,
 	switch (pass) {
 	case OVL_SCAN_PASS_ONE:
 		/* PASS 1: Checking redirect xattr and directory tree */
-		ops.redirect = ovl_check_redirect;
+		if (layer->flag & FS_LAYER_XATTR) {
+			ops.redirect = ovl_check_redirect;
+			scan = true;
+		} else {
+			/* Skip redirect dir if not support xattr */
+			snprintf(skip, sizeof(skip) - strlen(skip),
+				 " %s,", "redirect dir");
+		}
 		break;
 	case OVL_SCAN_PASS_TWO:
 		/* PASS 2: Checking whiteouts and impure xattr */
 		if (layer->type == OVL_UPPER) {
-			ops.impurity = ovl_count_impurity;
-			ops.impure = ovl_check_impure;
-			ops.whiteout = ovl_check_whiteout;
-		} else {
-			ops.whiteout = ovl_check_whiteout;
+			if (layer->flag & FS_LAYER_XATTR) {
+				ops.impurity = ovl_count_impurity;
+				ops.impure = ovl_check_impure;
+			} else {
+				/* Skip impure if not support xattr */
+				snprintf(skip, sizeof(skip) - strlen(skip),
+					 " %s,", "impure xattr");
+			}
 		}
+		ops.whiteout = ovl_check_whiteout;
+		scan = true;
 		break;
 	default:
 		print_err(_("Unknown scan pass %d\n"), pass);
 		return -1;
 	}
+
+	/*
+	 * No need to check some features if this layer not
+	 * support xattr.
+	 */
+	if ((skip[0] != '\0') && (flags & FL_VERBOSE))
+		print_info(_("Xattr not supported in %s:%d, "
+			     "do not check %s\n"),
+			     layer->type == OVL_UPPER ? "upper" : "lower",
+			     layer->stack, skip);
+
+	if (!scan)
+		return 0;
 
 	sctx.layer = layer;
 	ret = scan_dir(&sctx, &ops);

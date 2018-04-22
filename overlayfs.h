@@ -37,10 +37,12 @@
 #define OPT_WORKDIR "workdir="
 
 /* Xattr */
-#define OVL_OPAQUE_XATTR	"trusted.overlay.opaque"
-#define OVL_REDIRECT_XATTR	"trusted.overlay.redirect"
-#define OVL_ORIGIN_XATTR	"trusted.overlay.origin"
-#define OVL_IMPURE_XATTR	"trusted.overlay.impure"
+#define XATTR_TRUSTED_PREFIX	"trusted."
+#define OVL_XATTR_PREFIX	XATTR_TRUSTED_PREFIX "overlay."
+#define OVL_OPAQUE_XATTR	OVL_XATTR_PREFIX "opaque"
+#define OVL_REDIRECT_XATTR	OVL_XATTR_PREFIX "redirect"
+#define OVL_ORIGIN_XATTR	OVL_XATTR_PREFIX "origin"
+#define OVL_IMPURE_XATTR	OVL_XATTR_PREFIX "impure"
 
 unsigned int ovl_split_lowerdirs(char *lower);
 char *ovl_next_opt(char **s);
