@@ -44,6 +44,7 @@
 #include "lib.h"
 #include "check.h"
 #include "mount.h"
+#include "overlayfs.h"
 
 char *program_name;
 
@@ -160,11 +161,11 @@ static int ovl_basic_check_layer(struct ovl_layer *layer)
 		layer->flag |= FS_LAYER_RO;
 
 	/* Check the underlying layer support xattr or not */
-	ret = flistxattr(layer->fd, NULL, 0);
-	if (ret < 0 && errno != ENOTSUP) {
+	ret = fgetxattr(layer->fd, OVL_XATTR_PREFIX, NULL, 0);
+	if (ret < 0 && errno != ENOTSUP && errno != ENODATA) {
 		print_err(_("flistxattr failed:%s\n"), strerror(errno));
 		return -1;
-	} else if (ret >= 0) {
+	} else if (ret >= 0 || errno == ENODATA) {
 		layer->flag |= FS_LAYER_XATTR;
 	}
 
