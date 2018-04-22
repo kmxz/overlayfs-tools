@@ -54,6 +54,7 @@
 
 /* Scan layer flag */
 #define FS_LAYER_RO	(1 << 0)	/* layer is read-only */
+#define FS_LAYER_XATTR	(1 << 1)	/* layer support xattr */
 
 /* Information for each underlying layer */
 struct ovl_layer {
