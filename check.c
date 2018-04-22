@@ -863,29 +863,7 @@ static int ovl_count_impurity(struct scan_ctx *sctx)
  *            validity of whiteouts, and check missing impure xattr
  *            in upperdir.
  */
-
-static struct scan_operations ovl_scan_ops[OVL_SCAN_PASS][2] = {
-	{
-		[OVL_UPPER] = {
-			.redirect = ovl_check_redirect,
-		},
-		[OVL_LOWER] = {
-			.redirect = ovl_check_redirect,
-		},
-	},/* Pass One */
-	{
-		[OVL_UPPER] = {
-			.whiteout = ovl_check_whiteout,
-			.impurity = ovl_count_impurity,
-			.impure = ovl_check_impure,
-		},
-		[OVL_LOWER] = {
-			.whiteout = ovl_check_whiteout,
-		},
-	}/* Pass Two */
-};
-
-static char *ovl_scan_desc[OVL_SCAN_PASS] = {
+static char *ovl_scan_desc[OVL_SCAN_PASS_MAX] = {
 	"Checking redirect xattr and directory tree",
 	"Checking whiteouts and impure xattr"
 };
@@ -934,49 +912,110 @@ static void ovl_scan_check(struct scan_result *result)
 		set_inconsistency(&status);
 }
 
-/* Scan upperdir and each lowerdirs, check and fix inconsistency */
-int ovl_scan_fix(struct ovl_fs *ofs)
+static void ovl_scan_cumsum_result(struct scan_result *layer,
+				   struct scan_result *pass)
+{
+	pass->files += layer->files;
+	pass->directories += layer->directories;
+	pass->t_whiteouts += layer->t_whiteouts;
+	pass->i_whiteouts += layer->i_whiteouts;
+	pass->t_redirects += layer->t_redirects;
+	pass->i_redirects += layer->i_redirects;
+	pass->m_impure += layer->m_impure;
+}
+
+static void ovl_scan_update_result(struct scan_result *pass,
+				   struct scan_result *total)
+{
+	total->files = max(pass->files, total->files);
+	total->directories = max(pass->directories, total->directories);
+	total->t_whiteouts = max(pass->t_whiteouts, total->t_whiteouts);
+	total->i_whiteouts = max(pass->i_whiteouts, total->i_whiteouts);
+	total->t_redirects = max(pass->t_redirects, total->t_redirects);
+	total->i_redirects = max(pass->i_redirects, total->i_redirects);
+	total->m_impure = max(pass->m_impure, total->m_impure);
+}
+
+static int ovl_scan_layer(struct ovl_fs *ofs, struct ovl_layer *layer,
+			  int pass, struct scan_result *result)
 {
 	struct scan_ctx sctx = {.ofs = ofs};
-	int i,j;
+	struct scan_operations ops = {};
 	int ret;
 
 	if (flags & FL_VERBOSE)
 		print_info(_("Scan and fix: "
 			     "[whiteouts|redirect dir|impure dir]\n"));
 
-	for (i = 0; i < OVL_SCAN_PASS; i++) {
+	/* Init scan operation for this casn pass and scan underlying dir */
+	switch (pass) {
+	case OVL_SCAN_PASS_ONE:
+		/* PASS 1: Checking redirect xattr and directory tree */
+		ops.redirect = ovl_check_redirect;
+		break;
+	case OVL_SCAN_PASS_TWO:
+		/* PASS 2: Checking whiteouts and impure xattr */
+		if (layer->type == OVL_UPPER) {
+			ops.impurity = ovl_count_impurity;
+			ops.impure = ovl_check_impure;
+			ops.whiteout = ovl_check_whiteout;
+		} else {
+			ops.whiteout = ovl_check_whiteout;
+		}
+		break;
+	default:
+		print_err(_("Unknown scan pass %d\n"), pass);
+		return -1;
+	}
+
+	sctx.layer = layer;
+	ret = scan_dir(&sctx, &ops);
+	if (ret)
+		return ret;
+
+	/* Check scan result for this pass */
+	ovl_scan_check(&sctx.result);
+	ovl_scan_cumsum_result(&sctx.result, result);
+	return 0;
+}
+
+/* Scan upperdir and each lowerdirs, check and fix inconsistency */
+int ovl_scan_fix(struct ovl_fs *ofs)
+{
+	struct scan_result result = {0};
+	int pass, stack;
+	int ret;
+
+	for (pass = 0; pass < OVL_SCAN_PASS_MAX; pass++) {
+		struct scan_result pass_result = {0};
+
 		if (flags & FL_VERBOSE)
-			print_info(_("Pass %d: %s\n"), i, ovl_scan_desc[i]);
+			print_info(_("Pass %d: %s\n"), pass,
+				     ovl_scan_desc[pass]);
 
-		sctx.result.directories = 0;
-		sctx.result.files = 0;
-
-		/* Scan every lower directories */
-		for (j = ofs->lower_num - 1; j >= 0; j--) {
-			print_debug(_("Scan lower directory %d\n"), j);
-
-			sctx.layer = &ofs->lower_layer[j];
-			ret = scan_dir(&sctx, &ovl_scan_ops[i][OVL_LOWER]);
+		/* Scan each lower layer */
+		for (stack = ofs->lower_num - 1; stack >= 0; stack--) {
+			print_debug(_("Scan lower layer %d\n"), stack);
+			ret = ovl_scan_layer(ofs, &ofs->lower_layer[stack],
+					     pass, &pass_result);
 			if (ret)
 				goto out;
 		}
 
-		/* Scan upper directory */
+		/* Scan upper layer */
 		if (flags & FL_UPPER) {
-			print_debug(_("Scan upper directory\n"));
-
-			sctx.layer = &ofs->upper_layer;
-			ret = scan_dir(&sctx, &ovl_scan_ops[i][OVL_UPPER]);
+			print_debug(_("Scan upper layer\n"));
+			ret = ovl_scan_layer(ofs, &ofs->upper_layer, pass,
+					     &pass_result);
 			if (ret)
 				goto out;
 		}
 
-		/* Check scan result for this pass */
-		ovl_scan_check(&sctx.result);
+		/* Update scan result */
+		ovl_scan_update_result(&pass_result, &result);
 	}
 out:
-	ovl_scan_report(&sctx.result);
+	ovl_scan_report(&result);
 	ovl_scan_clean();
 	return ret;
 }
