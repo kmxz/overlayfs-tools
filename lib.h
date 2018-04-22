@@ -42,7 +42,9 @@
 #define FL_OPT_MASK	(FL_OPT_AUTO|FL_OPT_NO|FL_OPT_YES)
 
 /* Scan pass */
-#define OVL_SCAN_PASS	2
+#define OVL_SCAN_PASS_ONE	0
+#define OVL_SCAN_PASS_TWO	1
+#define OVL_SCAN_PASS_MAX	2
 
 /* Scan path type */
 #define OVL_UPPER	0
