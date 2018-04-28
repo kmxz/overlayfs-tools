@@ -1023,8 +1023,27 @@ int ovl_scan_fix(struct ovl_fs *ofs)
 		/* Scan each lower layer */
 		for (stack = ofs->lower_num - 1; stack >= 0; stack--) {
 			print_debug(_("Scan lower layer %d\n"), stack);
-			ret = ovl_scan_layer(ofs, &ofs->lower_layer[stack],
-					     pass, &pass_result);
+
+			/*
+			 * If lower layer is read-only, switch to -n scan
+			 * option, because this layer cannot modifiy.
+			 */
+			if (ofs->lower_layer[stack].flag & FS_LAYER_RO) {
+				int save_flags = flags & FL_OPT_MASK;
+
+				print_info(_("Lower layer %d is read-only, "
+					     "switch to -n option this layer\n"),
+					     stack);
+
+				flags = (flags & !FL_OPT_MASK) | FL_OPT_NO;
+				ret = ovl_scan_layer(ofs, &ofs->lower_layer[stack],
+						     pass, &pass_result);
+				flags = (flags & !FL_OPT_NO) | save_flags;
+			} else {
+				ret = ovl_scan_layer(ofs, &ofs->lower_layer[stack],
+						     pass, &pass_result);
+			}
+
 			if (ret)
 				goto out;
 		}
