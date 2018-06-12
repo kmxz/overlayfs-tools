@@ -196,7 +196,7 @@ static inline int ovl_ask_action(const char *description, const char *pathname,
 				 int dirtype, int stack,
 				 const char *question, int action)
 {
-	if (dirtype == OVL_UPPER)
+	if (dirtype == OVL_UPPER || dirtype == OVL_WORK)
 		print_info(_("%s: \"%s\" in %s "),
 			     description, pathname, "upperdir");
 	else
@@ -210,7 +210,7 @@ static inline int ovl_ask_question(const char *question, const char *pathname,
 				   int dirtype, int stack,
 				   int action)
 {
-	if (dirtype == OVL_UPPER)
+	if (dirtype == OVL_UPPER || dirtype == OVL_WORK)
 		print_info(_("%s: \"%s\" in %s "),
 			     question, pathname, "upperdir");
 	else

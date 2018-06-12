@@ -91,6 +91,14 @@ static int ovl_open_dirs(struct ovl_fs *ofs)
 				    ofs->upper_layer.path, strerror(errno));
 			return -1;
 		}
+
+		ofs->workdir.fd = open(ofs->workdir.path, O_RDONLY|O_NONBLOCK|
+				       O_DIRECTORY|O_CLOEXEC);
+		if (ofs->workdir.fd < 0) {
+			print_err(_("Failed to open %s:%s\n"),
+				    ofs->workdir.path, strerror(errno));
+			goto err;
+		}
 	}
 
 	for (i = 0; i < ofs->lower_num; i++) {
@@ -99,16 +107,19 @@ static int ovl_open_dirs(struct ovl_fs *ofs)
 		if (ofs->lower_layer[i].fd < 0) {
 			print_err(_("Failed to open %s:%s\n"),
 				    ofs->lower_layer[i].path, strerror(errno));
-			goto err;
+			goto err2;
 		}
 	}
 
 	return 0;
-err:
+err2:
 	for (i--; i >= 0; i--) {
 		close(ofs->lower_layer[i].fd);
 		ofs->lower_layer[i].fd = 0;
 	}
+	close(ofs->workdir.fd);
+	ofs->workdir.fd = 0;
+err:
 	close(ofs->upper_layer.fd);
 	ofs->upper_layer.fd = 0;
 	return -1;
@@ -136,8 +147,8 @@ static void ovl_clean_dirs(struct ovl_fs *ofs)
 		ofs->upper_layer.fd = 0;
 		free(ofs->upper_layer.path);
 		ofs->upper_layer.path = NULL;
-	}
-	if (ofs->workdir.path) {
+		close(ofs->workdir.fd);
+		ofs->workdir.fd = 0;
 		free(ofs->workdir.path);
 		ofs->workdir.path = NULL;
 	}
@@ -172,6 +183,48 @@ static int ovl_basic_check_layer(struct ovl_layer *layer)
 	return 0;
 }
 
+/* Do some basic check for the workdir, not iterate the dir */
+static int ovl_basic_check_workdir(struct ovl_fs *ofs)
+{
+	struct statfs upperfs, workfs;
+	int ret;
+
+	ret = fstatfs(ofs->upper_layer.fd, &upperfs);
+	if (ret) {
+		print_err(_("fstatfs failed:%s\n"), strerror(errno));
+		return -1;
+	}
+
+	ret = fstatfs(ofs->workdir.fd, &workfs);
+	if (ret) {
+		print_err(_("fstatfs failed:%s\n"), strerror(errno));
+		return -1;
+	}
+
+	/* Workdir should not be subdir of upperdir and vice versa */
+	if (strstr(ofs->upper_layer.path, ofs->workdir.path) ||
+	    strstr(ofs->workdir.path, ofs->upper_layer.path)) {
+		print_info(_("Workdir should not be subdir of "
+			     "upperdir and vice versa\n"));
+		return -1;
+	}
+
+	/* Upperdir and workdir should belongs to one file system */
+	if (memcmp(&upperfs.f_fsid, &workfs.f_fsid, sizeof(fsid_t))) {
+		print_info(_("Upper dir and lower dir should "
+			     "belongs to one file system\n"));
+		return -1;
+	}
+
+	/* workdir should not be read-only */
+	if ((workfs.f_flags & ST_RDONLY) && !(flags & FL_OPT_NO)) {
+		print_info(_("Workdir is read-only\n"));
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * Do basic check for the underlying filesystem, refuse to do futher check
  * if something wrong.
@@ -182,6 +235,11 @@ static int ovl_basic_check(struct ovl_fs *ofs)
 	int i;
 
 	if (flags & FL_UPPER) {
+		/* Check work root dir */
+		ret = ovl_basic_check_workdir(ofs);
+		if (ret)
+			return ret;
+
 		ret = ovl_basic_check_layer(&ofs->upper_layer);
 		if (ret)
 			return ret;
@@ -292,7 +350,7 @@ static void parse_options(int argc, char *argv[])
 		flags |= FL_UPPER;
 	}
 	if (ofs.workdir.path)
-		ofs.workdir.type = OVL_WORKER;
+		ofs.workdir.type = OVL_WORK;
 
 	if (!ofs.lower_num ||
 	    (!(flags & FL_UPPER) && ofs.lower_num == 1)) {
