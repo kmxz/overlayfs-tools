@@ -49,7 +49,7 @@
 /* Scan path type */
 #define OVL_UPPER	0
 #define OVL_LOWER	1
-#define OVL_WORKER	2
+#define OVL_WORK	2
 #define OVL_PTYPE_MAX	3
 
 /* Scan layer flag */
