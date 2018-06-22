@@ -133,7 +133,7 @@ static void ovl_clean_dirs(struct ovl_fs *ofs)
 		free(ofs->upper_layer.path);
 		ofs->upper_layer.path = NULL;
 	}
-	if (flags & FL_WORK) {
+	if (ofs->workdir.path) {
 		free(ofs->workdir.path);
 		ofs->workdir.path = NULL;
 	}
@@ -226,11 +226,8 @@ static void parse_options(int argc, char *argv[])
 		ofs.upper_layer.type = OVL_UPPER;
 		flags |= FL_UPPER;
 	}
-	if (ofs.workdir.path) {
+	if (ofs.workdir.path)
 		ofs.workdir.type = OVL_WORKER;
-		flags |= FL_WORK;
-	}
-
 
 	if (!ofs.lower_num ||
 	    (!(flags & FL_UPPER) && ofs.lower_num == 1)) {

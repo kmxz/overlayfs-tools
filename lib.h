@@ -36,7 +36,6 @@
 /* Option flags */
 #define FL_VERBOSE	(1 << 0)	/* verbose */
 #define FL_UPPER	(1 << 1)	/* specify upper directory */
-#define FL_WORK		(1 << 2)	/* specify work directory */
 #define FL_OPT_AUTO	(1 << 3)	/* automactically scan dirs and repair */
 #define FL_OPT_NO	(1 << 4)	/* no changes to the filesystem */
 #define FL_OPT_YES	(1 << 5)	/* yes to all questions */
