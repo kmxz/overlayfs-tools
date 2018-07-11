@@ -32,6 +32,7 @@
 /* Fsck status */
 #define OVL_ST_INCONSISTNECY	(1 << 0)
 #define OVL_ST_ABORT		(1 << 1)
+#define OVL_ST_CHANGED		(1 << 2)
 
 /* Option flags */
 #define FL_VERBOSE	(1 << 0)	/* verbose */
@@ -118,6 +119,11 @@ static inline void set_inconsistency(int *status)
 static inline void set_abort(int *status)
 {
 	*status |= OVL_ST_ABORT;
+}
+
+static inline void set_changed(int *status)
+{
+	*status |= OVL_ST_CHANGED;
 }
 
 int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop);
