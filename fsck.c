@@ -383,23 +383,37 @@ err_out:
 }
 
 /* Check file system status after fsck and return the exit value */
-static void fsck_status_report(int *exit)
+static void fsck_exit(void)
 {
+	int exit_value = FSCK_OK;
+
+	if (status & OVL_ST_CHANGED) {
+		exit_value |= FSCK_NONDESTRUCT;
+		print_info(_("File system was modified!\n"));
+	}
+
 	if (status & OVL_ST_INCONSISTNECY) {
-		*exit |= FSCK_UNCORRECTED;
+		exit_value |= FSCK_UNCORRECTED;
+		exit_value &= ~FSCK_NONDESTRUCT;
 		print_info(_("Still have unexpected inconsistency!\n"));
 	}
 
 	if (status & OVL_ST_ABORT) {
-		*exit |= FSCK_ERROR;
-		print_info(_("Cannot continue, aborting\n"));
+		exit_value |= FSCK_ERROR;
+		print_info(_("Cannot continue, aborting!\n"));
+		print_info(_("Filesystem check failed, may not clean!\n"));
 	}
+
+	if ((exit_value == FSCK_OK) ||
+	    (!(exit_value & FSCK_ERROR) && !(exit_value & FSCK_UNCORRECTED)))
+		print_info(_("Filesystem clean\n"));
+
+	exit(exit_value);
 }
 
 int main(int argc, char *argv[])
 {
 	bool mounted = false;
-	int exit = 0;
 
 	program_name = basename(argv[0]);
 
@@ -428,14 +442,9 @@ int main(int argc, char *argv[])
 
 out:
 	ovl_clean_dirs(&ofs);
-	fsck_status_report(&exit);
-	if (exit)
-		print_info("WARNING: Filesystem check failed, may not clean\n");
-	else
-		print_info("Filesystem clean\n");
-
-	return exit;
+	fsck_exit();
+	return 0;
 err:
-	exit |= FSCK_ERROR;
+	set_abort(&status);
 	goto out;
 }

@@ -444,6 +444,7 @@ remove:
 			    strerror(errno));
 		goto out;
 	}
+	set_changed(&status);
 	sctx->result.t_whiteouts--;
 	sctx->result.i_whiteouts--;
 out:
@@ -598,6 +599,7 @@ static int ovl_do_remove_redirect(const struct ovl_fs *ofs,
 
 	(*total)--;
 	(*invalid)--;
+	set_changed(&status);
 
 	/* If lower corresponding dir exists, ask user to set opaque */
 	ret = ovl_lookup_lower(ofs, pathname, layer->type,
@@ -611,6 +613,8 @@ static int ovl_do_remove_redirect(const struct ovl_fs *ofs,
 	if (ovl_ask_question("Should set opaque dir", pathname,
 			     layer->type, layer->stack, 0)) {
 		ret = ovl_set_opaque(layer->fd, pathname);
+		if (!ret)
+			set_changed(&status);
 		goto out;
 	}
 
@@ -712,6 +716,7 @@ static int ovl_check_redirect(struct scan_ctx *sctx)
 				if (ret)
 					goto out;
 
+				set_changed(&status);
 				sctx->result.t_whiteouts++;
 			}
 		} else if (is_dir(&cover_st) &&
@@ -733,6 +738,7 @@ static int ovl_check_redirect(struct scan_ctx *sctx)
 				ret = ovl_set_opaque(layer->fd, redirect);
 				if (ret)
 					goto out;
+				set_changed(&status);
 				sctx->result.i_redirects--;
 			} else {
 				goto out;
@@ -797,6 +803,8 @@ static int ovl_check_impure(struct scan_ctx *sctx)
 			   layer->type, layer->stack, "Fix", 1)) {
 		if (ovl_set_impure(layer->fd, sctx->pathname))
 			return -1;
+
+		set_changed(&status);
 	} else {
 		/*
 		 * Note: not enforce to fix the case of directory that
@@ -997,13 +1005,12 @@ static int ovl_scan_layer(struct ovl_fs *ofs, struct ovl_layer *layer,
 
 	sctx.layer = layer;
 	ret = scan_dir(&sctx, &ops);
-	if (ret)
-		return ret;
 
 	/* Check scan result for this pass */
 	ovl_scan_check(&sctx.result);
 	ovl_scan_cumsum_result(&sctx.result, result);
-	return 0;
+
+	return ret;
 }
 
 /* Scan upperdir and each lowerdirs, check and fix inconsistency */
