@@ -275,7 +275,7 @@ static void usage(void)
 		    "-v, --verbose             print more messages of overlayfs\n"
 		    "-h, --help                display this usage of overlayfs\n"
 		    "-V, --version             display version information\n"));
-	exit(1);
+	exit(FSCK_USAGE);
 }
 
 /* Parse options from user and check correctness */
@@ -355,31 +355,31 @@ static void parse_options(int argc, char *argv[])
 	if (!ofs.lower_num ||
 	    (!(flags & FL_UPPER) && ofs.lower_num == 1)) {
 		print_info(_("Please specify correct lowerdirs and upperdir!\n\n"));
-		goto err_out2;
+		goto usage_out;
 	}
 
 	if (ofs.upper_layer.path && !ofs.workdir.path) {
 		print_info(_("Please specify correct workdir!\n\n"));
-		goto err_out2;
+		goto usage_out;
 	}
 
 	if (conflict) {
 		print_info(_("Only one of the options -p/-a, -n or -y "
 			     "can be specified!\n\n"));
-		goto err_out2;
+		goto usage_out;
 	}
 
 	ovl_free_opt(&config);
 	free(lowerdir);
 	return;
 
-err_out2:
+usage_out:
 	ovl_free_opt(&config);
 	ovl_clean_dirs(&ofs);
 	free(lowerdir);
-err_out:
 	usage();
-	exit(1);
+err_out:
+	exit(FSCK_ERROR);
 }
 
 /* Check file system status after fsck and return the exit value */
