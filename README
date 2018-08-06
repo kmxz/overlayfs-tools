@@ -6,6 +6,21 @@ of overlay-filesystem.
 
 Check the following points:
 
+Basic items
+-----------
+
+Kernel do some basic checking for the workdir and upperdir at mount time, fsck
+need to do the same things.
+
+1) The workdir should not be subdir of the upperdir and vice versa.
+2) The workdir and the upperdir should belong to the same base file system.
+3) The upper layer should not be read-only.
+4) Any layer of the whole underlying layers should not be mounted.
+
+fsck will refuse to check and repair the file system if one of the above
+mismatch. It will also check the lower layers that are real read-only or not,
+and switch to "no change" mode when checking the read-only lower layer.
+
 Whiteouts
 ---------
 
