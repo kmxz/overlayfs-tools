@@ -25,6 +25,8 @@
 #ifndef OVL_OVERLAYFS_H
 #define OVL_OVERLAYFS_H
 
+#define OVERLAYFS_SUPER_MAGIC 0x794c7630
+
 /* Name of overlay filesystem type */
 #define OVERLAY_NAME "overlay"
 
