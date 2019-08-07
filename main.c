@@ -13,7 +13,9 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <attr/xattr.h>
-#include <linux/stat.h>
+#ifndef _SYS_STAT_H
+  #include <linux/stat.h>
+#endif
 #include "logic.h"
 #include "sh.h"
 
