@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/xattr.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <linux/limits.h>
 
 #include "common.h"
