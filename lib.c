@@ -224,7 +224,7 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 		/* Fillup base context */
 		scan_entry_init(sctx, ftsent);
 
-		print_debug(_("Scan:%-3s %2d %7jd   %-40s %-20s\n"),
+		print_debug(_("Scan:%-3s %2d %7lld   %-40s %-20s\n"),
 			      (ftsent->fts_info == FTS_D) ? "d" :
 			      (ftsent->fts_info == FTS_DNR) ? "dnr" :
 			      (ftsent->fts_info == FTS_DP) ? "dp" :
@@ -233,7 +233,8 @@ int scan_dir(struct scan_ctx *sctx, struct scan_operations *sop)
 			      (ftsent->fts_info == FTS_SL) ? "sl" :
 			      (ftsent->fts_info == FTS_SLNONE) ? "sln" :
 			      (ftsent->fts_info == FTS_DEFAULT) ? "df" : "???",
-			      ftsent->fts_level, ftsent->fts_statp->st_size,
+			      ftsent->fts_level,
+			      (long long)ftsent->fts_statp->st_size,
 			      ftsent->fts_path, sctx->layer->path);
 
 		switch (ftsent->fts_info) {
