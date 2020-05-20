@@ -1,0 +1,55 @@
+Added: /deleted_files/file_by_dir/
+Added: /deleted_files/link-by-dir/
+Added: /deleted_files/link-by-dir/sub_dir/
+Added: /modified_dir/created/
+Added: /modified_dir/created/sub1/
+Added: /modified_dir/created/sub1/sub"2/
+Added: /modified_dir/sub_1/sub_2/added_file
+Added: /modified_dir/sub_1/sub_2/sub_3/sub_4/added/
+Added: /normal_merged_dir/more_test/by_opaque/
+Added: /normal_merged_dir/more_test/file_to_link
+Added: /normal_merged_dir/more_test/link_to_file
+Added: /normal_merged_dir/only_new
+Added: /removed_tests/replaced by a file
+Added: /removed_tests/replaced_by_opaque/
+Added: /removed_tests/replaced_by_opaque/new_file
+Added: /removed_tests/replaced_by_opaque/new_subdir/
+Added: /removed_tests/replaced_by_symlink
+Modified: /modified_dir/sub_1/permission/
+Modified: /modified_dir/sub_1/permission/changed$file
+Modified: /modified_dir/sub_1/permission/dir/
+Modified: /modified_dir/sub_1/sub_2/sub_3/file
+Modified: /normal_merged_dir/changed" "file
+Modified: /normal_merged_dir/changed_symlink
+Modified: /permission/changed_file
+Modified: /permission/file
+Modified: /permission/path_1/
+Modified: /permission/path_2/
+Modified: /permission/path_2/another_path/
+Removed: /deleted_files/dir_whiteout/
+Removed: /deleted_files/file_by_dir
+Removed: /deleted_files/link-by-dir
+Removed: /modified_dir/sub_1/sub_2/sub_3/sub_4/removed/
+Removed: /normal_merged_dir/more_test/by_opaque/
+Removed: /normal_merged_dir/more_test/by_opaque/a_file
+Removed: /normal_merged_dir/more_test/by_opaque/another_file
+Removed: /normal_merged_dir/more_test/by_opaque/third_file
+Removed: /normal_merged_dir/more_test/file_to_link
+Removed: /normal_merged_dir/more_test/link_to_file
+Removed: /normal_merged_dir/only_old
+Removed: /removed_tests/empty_removed_dir/
+Removed: /removed_tests/removed_dir/
+Removed: /removed_tests/removed_dir/b.txt
+Removed: /removed_tests/removed_dir/subdir/
+Removed: /removed_tests/removed_dir/subdir/a.txt
+Removed: /removed_tests/replaced by a file/
+Removed: /removed_tests/replaced by a file/a.txt
+Removed: /removed_tests/replaced by a file/this_was_a_subdir/
+Removed: /removed_tests/replaced by a file/this_was_a_subdir/c.txt
+Removed: /removed_tests/replaced_by_opaque/
+Removed: /removed_tests/replaced_by_opaque/origin\subdir/
+Removed: /removed_tests/replaced_by_opaque/origin\subdir/a_file
+Removed: /removed_tests/replaced_by_opaque/origin\subdir/dir/
+Removed: /removed_tests/replaced_by_opaque/origin\subdir/dir/file
+Removed: /removed_tests/replaced_by_symlink/
+Removed: /removed_tests/replaced_by_symlink/another_subdir/

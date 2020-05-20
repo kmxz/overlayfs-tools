@@ -1,0 +1,42 @@
+TESTS := diff verbose brief
+
+all: $(TESTS)
+
+overlayed: overlayed.tar
+	sudo tar xf $<
+
+permanent: lower.tar
+	sudo tar xf $<
+
+changes: upper.tar
+	sudo tar xf $< --strip-components=2
+	sudo setfattr -n trusted.overlay.opaque -v y changes/removed_tests/replaced_by_opaque
+	sudo setfattr -n trusted.overlay.opaque -v y changes/normal_merged_dir/more_test/by_opaque
+
+OVERLAY := ../overlay
+
+brief.expected: permanent overlayed
+	diff -qr --no-dereference $(CURDIR)/permanent $(CURDIR)/overlayed 2>/dev/null | sed 's/overlayed/changes/g' | sort -u > $@
+
+diff.out: $(OVERLAY) permanent changes
+	sudo $(OVERLAY) -l permanent/ -u changes/ diff | sort -u > $@
+
+verbose.out: $(OVERLAY) permanent changes
+	sudo $(OVERLAY) -l permanent -u changes diff -v | sort -u > $@
+
+brief.out: $(OVERLAY) permanent changes
+	sudo $(OVERLAY) -l permanent -u changes diff -b | sort -u > $@
+
+# diff.saved changes should be committed if diff.out changes intentionally
+diff: diff.saved diff.out
+	diff -u $^
+
+# verbose.saved changes should be committed if verbose.out changes intentionally
+verbose: verbose.saved verbose.out
+	diff -u $^
+
+brief: brief.expected brief.out
+	diff -u $^
+
+clean:
+	sudo rm -rf permanent changes overlayed *.expected *.out
