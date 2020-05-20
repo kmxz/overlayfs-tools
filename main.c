@@ -33,6 +33,7 @@ void print_help() {
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
+    puts("  -b, --brief                with diff action only: conform to output of diff --brief --recursive --no-dereference");
     puts("  -h, --help                 show this help text");
     puts("");
     puts("See https://github.com/kmxz/overlayfs-tools/ for warnings and more information.");
@@ -110,7 +111,9 @@ bool check_xattr_trusted(const char *upper) {
     return ret;
 }
 
+// currently, brief and verbose are mutually exclusive
 bool verbose;
+bool brief;
 
 int main(int argc, char *argv[]) {
 
@@ -122,6 +125,7 @@ int main(int argc, char *argv[]) {
         { "upperdir", required_argument, 0, 'u' },
         { "help",     no_argument      , 0, 'h' },
         { "verbose",  no_argument      , 0, 'v' },
+        { "brief",    no_argument      , 0, 'b' },
         { 0,          0,                 0,  0  }
     };
 
@@ -140,6 +144,11 @@ int main(int argc, char *argv[]) {
                 return EXIT_SUCCESS;
             case 'v':
                 verbose = true;
+                brief = false;
+                break;
+            case 'b':
+                verbose = false;
+                brief = true;
                 break;
             default:
                 fprintf(stderr, "Option %c is not supported.\n", opt);

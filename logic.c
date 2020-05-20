@@ -10,6 +10,7 @@
 #include <attr/xattr.h>
 #include <attr/attributes.h>
 #include <fts.h>
+#include <libgen.h>
 #include "logic.h"
 #include "sh.h"
 
@@ -23,10 +24,36 @@ const char *ovl_metacopy_xattr = "trusted.overlay.metacopy";
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
-#define TRAILING_SLASH(status) ((file_type(status) == S_IFDIR) ? "/" : "")
+#define TRAILING_SLASH(ftype) (((ftype) == S_IFDIR) ? "/" : "")
 
 static inline mode_t file_type(const struct stat *status) {
     return status->st_mode & S_IFMT;
+}
+
+const char *ftype_name(mode_t type) {
+    switch (type) {
+    case S_IFDIR:
+        return "directory";
+    case S_IFREG:
+        return "regular file";
+    case S_IFLNK:
+        return "symbolic link";
+    default:
+        return "special file";
+    }
+}
+
+const char *ftype_name_plural(mode_t type) {
+    switch (type) {
+    case S_IFDIR:
+        return "Directories";
+    case S_IFREG:
+        return "Files";
+    case S_IFLNK:
+        return "Symbolic links";
+    default:
+        return "Special files";
+    }
 }
 
 static inline bool is_whiteout(const struct stat *status) {
@@ -211,26 +238,87 @@ static int vacuum_sl(const char *lower_path, const char* upper_path, const size_
     return command(script_stream, "rm %", upper_path);
 }
 
-int list_deleted_files(const char *path, size_t root_path_len) { // This WORKS with files and itself is listed. However, prefixs are WRONG!
-    if (!verbose) {
-        printf("Removed: %s/\n", &path[root_path_len]);
+void print_only_in(const char *path) {
+    char *dirc = strdup(path);
+    char *basec = strdup(path);
+    char *dname = dirname(dirc);
+    char *bname = basename(basec);
+    printf("Only in %s: %s\n", dname, bname);
+    free(dirc);
+    free(basec);
+}
+
+void print_removed(const char *lower_path, const size_t lower_root_len, mode_t lower_type) {
+    if (brief) {
+	print_only_in(lower_path);
+    } else {
+        printf("Removed: %s%s\n", &lower_path[lower_root_len], TRAILING_SLASH(lower_type));
+    }
+}
+
+void print_added(const char *lower_path, const size_t lower_root_len, const char *upper_path, mode_t upper_type) {
+    if (brief) {
+	print_only_in(upper_path);
+    } else {
+        printf("Added: %s%s\n", &lower_path[lower_root_len], TRAILING_SLASH(upper_type));
+    }
+}
+
+void print_replaced(const char *lower_path, const size_t lower_root_len, mode_t lower_type, const char *upper_path, mode_t upper_type) {
+    if (brief) {
+	printf("File %s is a %s while file %s is a %s\n", lower_path, ftype_name(lower_type), upper_path, ftype_name(upper_type));
+    } else {
+        if (lower_type != S_IFDIR) { // dir removed already printed by list_deleted_files()
+            print_removed(lower_path, lower_root_len, lower_type);
+        }
+        print_added(lower_path, lower_root_len, upper_path, upper_type);
+    }
+}
+
+void print_modified(const char *lower_path, const size_t lower_root_len, mode_t lower_type, const char *upper_path, bool identical) {
+    if (brief) {
+        if (!identical) { // brief format does not print permission difference
+	    printf("%s %s and %s differ\n", ftype_name_plural(lower_type), lower_path, upper_path);
+        }
+    } else {
+        printf("Modified: %s%s\n", &lower_path[lower_root_len], TRAILING_SLASH(lower_type));
+    }
+}
+
+int list_deleted_files(const char *lower_path, size_t lower_root_len, mode_t upper_type) { // This WORKS with files and itself is listed. However, prefixs are WRONG!
+    // brief format needs to print only first level deleted children under opaque dir
+    bool children = (brief && (upper_type == S_IFDIR));
+    if (!verbose && !children) {
+        if (!brief || upper_type == S_IFCHR) { // dir replaced already printed by print_replaced()
+            print_removed(lower_path, lower_root_len, S_IFDIR);
+        }
         return 0;
     }
     FTSENT *cur;
-    char *paths[2] = {(char *) path, NULL };
+    char *paths[2] = {(char *) lower_path, NULL };
     FTS *ftsp = fts_open(paths, FTS_NOCHDIR | FTS_PHYSICAL, NULL);
     if (ftsp == NULL) { return -1; }
     int return_val = 0;
     while (((cur = fts_read(ftsp)) != NULL) && (return_val == 0)) {
         switch (cur->fts_info) {
             case FTS_D:
+                // brief format does not need to print deleted grand children under opaque dir
+                if (children && cur->fts_level > 0) {
+                    print_removed(cur->fts_path, lower_root_len, S_IFDIR);
+                    fts_set(ftsp, cur, FTS_SKIP);
+                }
                 break; // do nothing
             case FTS_DP:
-                printf("Removed: %s/\n", &cur->fts_path[root_path_len]);
+                // brief format does not need to print deleted dir under opaque dir itself
+                if (!children) {
+                    print_removed(cur->fts_path, lower_root_len, S_IFDIR);
+                }
                 break;
             case FTS_F:
+                print_removed(cur->fts_path, lower_root_len, S_IFREG);
+                break;
             case FTS_SL:
-                printf("Removed: %s\n", &cur->fts_path[root_path_len]);
+                print_removed(cur->fts_path, lower_root_len, S_IFLNK);
                 break;
             case FTS_DEFAULT:
                 fprintf(stderr, "File %s is a special file (device or pipe). We cannot handle that.\n", cur->fts_path);
@@ -246,26 +334,29 @@ int list_deleted_files(const char *path, size_t root_path_len) { // This WORKS w
 }
 
 static int diff_d(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
-    if (lower_status != NULL) {
+    bool opaque = false;
+    bool lower_exist = (lower_status != NULL);
+    if (lower_exist) {
         if (file_type(lower_status) == S_IFDIR) {
-            bool opaque = false;
             if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
             if (opaque) {
-                if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
+                if (list_deleted_files(lower_path, lower_root_len, S_IFDIR) < 0) { return -1; }
             } else {
                 if (!permission_identical(lower_status, upper_status)) {
-                    printf("Modified: %s/\n", &lower_path[lower_root_len]);
+                    print_modified(lower_path, lower_root_len, S_IFDIR, upper_path, true);
                 }
                 return 0; // children must be recursed, and directory itself does not need to be printed
             }
         } else { // other types of files
-            printf("Removed: %s\n", &lower_path[lower_root_len]);
+            print_replaced(lower_path, lower_root_len, file_type(lower_status), upper_path, S_IFDIR);
         }
     }
-    if (!verbose) {
+    if (!(verbose || (brief && opaque))) { // brief format needs to print children of opaque dir
         *fts_instr = FTS_SKIP;
     }
-    printf("Added: %s/\n", &lower_path[lower_root_len]);
+    if (!lower_exist || (!brief && opaque)) { // brief format does not need to print opaque dir itself
+        print_added(lower_path, lower_root_len, upper_path, S_IFDIR);
+    }
     return 0;
 }
 
@@ -273,26 +364,26 @@ static int diff_f(const char *lower_path, const char* upper_path, const size_t l
     bool identical;
     if (lower_status != NULL) {
         switch (file_type(lower_status)) {
-            case S_IFDIR:
-                if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
-                break;
             case S_IFREG:
                 if (regular_file_identical(lower_path, lower_status, upper_path, upper_status, &identical) < 0) {
                     return -1;
                 }
                 if (!(identical && permission_identical(lower_status, upper_status))) {
-                    printf("Modified: %s\n", &lower_path[lower_root_len]);
+                    print_modified(lower_path, lower_root_len, S_IFREG, upper_path, identical);
                 }
                 return 0;
+            case S_IFDIR:
+                if (list_deleted_files(lower_path, lower_root_len, S_IFREG) < 0) { return -1; }
+                /* fallthrough */
             case S_IFLNK:
-                printf("Removed: %s\n", &lower_path[lower_root_len]);
-                break;
+                print_replaced(lower_path, lower_root_len, file_type(lower_status), upper_path, S_IFREG);
+                return 0;
             default:
                 fprintf(stderr, "File %s is a special file (device or pipe). We cannot handle that.\n", lower_path);
                 return -1;
         }
     }
-    printf("Added: %s\n", &lower_path[lower_root_len]);
+    print_added(lower_path, lower_root_len, upper_path, S_IFREG);
     return 0;
 }
 
@@ -301,17 +392,17 @@ static int diff_sl(const char *lower_path, const char* upper_path, const size_t 
     if (lower_status != NULL) {
         switch (file_type(lower_status)) {
             case S_IFDIR:
-                if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
-                break;
+                if (list_deleted_files(lower_path, lower_root_len, S_IFLNK) < 0) { return -1; }
+                /* fallthrough */
             case S_IFREG:
-                printf("Removed: %s\n", &lower_path[lower_root_len]);
-                break;
+                print_replaced(lower_path, lower_root_len, file_type(lower_status), upper_path, S_IFLNK);
+                return 0;
             case S_IFLNK:
                 if (symbolic_link_identical(lower_path, upper_path, &identical) < 0) {
                     return -1;
                 }
                 if (!(identical && permission_identical(lower_status, upper_status))) {
-                    printf("Modified: %s\n", &lower_path[lower_root_len]);
+                    print_modified(lower_path, lower_root_len, S_IFLNK, upper_path, identical);
                 }
                 return 0;
             default:
@@ -319,16 +410,16 @@ static int diff_sl(const char *lower_path, const char* upper_path, const size_t 
                 return -1;
         }
     }
-    printf("Added: %s\n", &lower_path[lower_root_len]);
+    print_added(lower_path, lower_root_len, upper_path, S_IFLNK);
     return 0;
 }
 
 static int diff_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
     if (lower_status != NULL) {
         if (file_type(lower_status) == S_IFDIR) {
-            if (list_deleted_files(lower_path, lower_root_len) < 0) { return -1; }
+            if (list_deleted_files(lower_path, lower_root_len, S_IFCHR) < 0) { return -1; }
         } else {
-            printf("Removed: %s\n", &lower_path[lower_root_len]);
+            print_removed(lower_path, lower_root_len, file_type(lower_status));
         }
     } // else: whiteouting a nonexistent file? must be an error. but we ignore that :)
     return 0;

@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 extern bool verbose;
+extern bool brief;
 
 /*
  * feature function. will take very long time to complete. returns 0 on success
