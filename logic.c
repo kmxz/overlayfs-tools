@@ -19,6 +19,7 @@
 // exact the same as in fs/overlayfs/overlayfs.h
 const char *ovl_opaque_xattr = "trusted.overlay.opaque";
 const char *ovl_redirect_xattr = "trusted.overlay.redirect";
+const char *ovl_metacopy_xattr = "trusted.overlay.metacopy";
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
@@ -53,6 +54,16 @@ int is_redirect(const char *path, bool *output) {
         return -1;
     }
     *output = (res > 0);
+    return 0;
+}
+
+int is_metacopy(const char *path, bool *output) {
+    ssize_t res = getxattr(path, ovl_metacopy_xattr, NULL, 0);
+    if ((res < 0) && (errno != ENODATA)) {
+        fprintf(stderr, "File %s metacopy xattr can not be read.\n", path);
+        return -1;
+    }
+    *output = (res >= 0);
     return 0;
 }
 
@@ -91,6 +102,14 @@ int regular_file_identical(const char *lower_path, const struct stat *lower_stat
     if (lower_status->st_size != upper_status->st_size) { // different sizes
         *output = false;
         return 0;
+    }
+    bool metacopy, redirect;
+    if (is_metacopy(upper_path, &metacopy) < 0) { return -1; }
+    if (is_redirect(upper_path, &redirect) < 0) { return -1; }
+    if (metacopy) {
+	    // metacopy means data is indentical, but redirect means it is not identical to lower_path
+	    *output = !redirect;
+	    return 0;
     }
     char lower_buffer[blksize];
     char upper_buffer[blksize];
@@ -357,7 +376,19 @@ int merge_dp(const char *lower_path, const char* upper_path, const size_t lower_
     return 0;
 }
 
-int merge_f_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+int merge_f(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+    bool metacopy, redirect;
+    if (is_metacopy(upper_path, &metacopy) < 0) { return -1; }
+    if (is_redirect(upper_path, &redirect) < 0) { return -1; }
+    // merging metacopy is not supported, we must abort merge so lower data won't be deleted
+    if (metacopy || redirect) {
+        fprintf(stderr, "Found metacopy/redirect on %s. Merging metacopy/redirect is not supported - Abort.\n", upper_path);
+        return -1;
+    }
+    return command(script_stream, "rm -rf %", lower_path) || command(script_stream, "mv -T % %", upper_path, lower_path);
+}
+
+int merge_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
     return command(script_stream, "rm -rf %", lower_path) || command(script_stream, "mv -T % %", upper_path, lower_path);
 }
 
@@ -437,5 +468,5 @@ int diff(const char* lowerdir, const char* upperdir, bool is_verbose) {
 }
 
 int merge(const char* lowerdir, const char* upperdir, bool is_verbose, FILE* script_stream) {
-    return traverse(lowerdir, upperdir, is_verbose, script_stream, merge_d, merge_dp, merge_f_sl, merge_f_sl, merge_whiteout);
+    return traverse(lowerdir, upperdir, is_verbose, script_stream, merge_d, merge_dp, merge_f, merge_sl, merge_whiteout);
 }
