@@ -110,11 +110,12 @@ bool check_xattr_trusted(const char *upper) {
     return ret;
 }
 
+bool verbose;
+
 int main(int argc, char *argv[]) {
 
     char lower[PATH_MAX] = "";
     char upper[PATH_MAX] = "";
-    bool verbose = false;
 
     static struct option long_options[] = {
         { "lowerdir", required_argument, 0, 'l' },
@@ -175,15 +176,15 @@ int main(int argc, char *argv[]) {
         char filename_template[] = "overlay-tools-XXXXXX.sh";
         FILE *script = NULL;
         if (strcmp(argv[optind], "diff") == 0) {
-            out = diff(lower, upper, verbose);
+            out = diff(lower, upper);
         } else if (strcmp(argv[optind], "vacuum") == 0) {
             script = create_shell_script(filename_template);
             if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
-            out = vacuum(lower, upper, verbose, script);
+            out = vacuum(lower, upper, script);
         } else if (strcmp(argv[optind], "merge") == 0) {
             script = create_shell_script(filename_template);
             if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
-            out = merge(lower, upper, verbose, script);
+            out = merge(lower, upper, script);
         } else {
             fprintf(stderr, "Action not supported.\n");
             goto see_help;
