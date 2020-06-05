@@ -13,8 +13,12 @@
 #include "logic.h"
 #include "sh.h"
 
-#define WHITEOUT_DEV 0 // exactly the same as in linux/fs.h
-const char *ovl_opaque_xattr = "trusted.overlay.opaque"; // exact the same as in fs/overlayfs/super.c
+// exactly the same as in linux/fs.h
+#define WHITEOUT_DEV 0
+
+// exact the same as in fs/overlayfs/overlayfs.h
+const char *ovl_opaque_xattr = "trusted.overlay.opaque";
+const char *ovl_redirect_xattr = "trusted.overlay.redirect";
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
@@ -32,13 +36,33 @@ static inline mode_t permission_bits(const struct stat *status) { // not used ye
     return status->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 }
 
-int is_opaquedir(const char *path, bool *output) {
+int is_opaque(const char *path, bool *output) {
     char val;
     ssize_t res = getxattr(path, ovl_opaque_xattr, &val, 1);
     if ((res < 0) && (errno != ENODATA)) {
         return -1;
     }
     *output = (res == 1 && val == 'y');
+    return 0;
+}
+
+int is_redirect(const char *path, bool *output) {
+    ssize_t res = getxattr(path, ovl_redirect_xattr, NULL, 0);
+    if ((res < 0) && (errno != ENODATA)) {
+        fprintf(stderr, "File %s redirect xattr can not be read.\n", path);
+        return -1;
+    }
+    *output = (res > 0);
+    return 0;
+}
+
+// Treat redirect as opaque dir because it hides the tree in lower_path
+// and we do not support following to redirected lower path
+int is_opaquedir(const char *path, bool *output) {
+    bool opaque, redirect;
+    if (is_opaque(path, &opaque) < 0) { return -1; }
+    if (is_redirect(path, &redirect) < 0) { return -1; }
+    *output = opaque || redirect;
     return 0;
 }
 
@@ -292,6 +316,14 @@ int diff_whiteout(const char *lower_path, const char* upper_path, const size_t l
 }
 
 int merge_d(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, bool verbose, FILE* script_stream, int *fts_instr) {
+    bool redirect;
+    if (is_redirect(upper_path, &redirect) < 0) { return -1; }
+    // merging redirects is not supported, we must abort merge so redirected lower (under whiteout) won't be deleted
+    // upper_path may be hiding the directory in lower_path, but there may be another redirect upper pointing at it
+    if (redirect) {
+        fprintf(stderr, "Found redirect on %s. Merging redirect is not supported - Abort.\n", upper_path);
+        return -1;
+    }
     if (lower_status != NULL) {
         if (file_type(lower_status) == S_IFDIR) {
             bool opaque = false;
@@ -345,7 +377,7 @@ int traverse(const char *lower_root, const char *upper_root, bool verbose, FILE*
     FTS *ftsp = fts_open(paths, FTS_NOCHDIR | FTS_PHYSICAL, NULL);
     if (ftsp == NULL) { return -1; }
     int return_val = 0;
-    while (((cur = fts_read(ftsp)) != NULL) && (return_val == 0)) {
+    while ((return_val == 0) && ((cur = fts_read(ftsp)) != NULL)) {
         TRAVERSE_CALLBACK callback = NULL;
         switch (cur->fts_info) {
             case FTS_D:
