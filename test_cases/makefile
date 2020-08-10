@@ -12,6 +12,12 @@ changes: upper.tar
 	sudo tar xf $< --strip-components=2
 	sudo setfattr -n trusted.overlay.opaque -v y changes/removed_tests/replaced_by_opaque
 	sudo setfattr -n trusted.overlay.opaque -v y changes/normal_merged_dir/more_test/by_opaque
+	# Only permission bits changed - make upper a "fake" emulated metacopy
+	# "fake" because it is missing trusted.overlay.origin xattr, so won't be
+	# accessible in real overlay mount
+	sudo setfattr -n trusted.overlay.metacopy -v y changes/permission/file
+	sudo truncate -s 0 changes/permission/file
+	sudo truncate -s 95 changes/permission/file
 
 OVERLAY := ../overlay
 
