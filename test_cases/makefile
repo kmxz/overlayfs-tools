@@ -4,6 +4,8 @@ all: $(TESTS)
 
 overlayed: overlayed.tar
 	sudo tar xf $<
+	# "fake" that lower removed_dir was actually renamed and not removed
+	sudo cp -a permanent/removed_tests/removed_dir overlayed/renamed_dir
 
 permanent: lower.tar
 	sudo tar xf $<
@@ -18,6 +20,10 @@ changes: upper.tar
 	sudo setfattr -n trusted.overlay.metacopy -v y changes/permission/file
 	sudo truncate -s 0 changes/permission/file
 	sudo truncate -s 95 changes/permission/file
+	# "fake" that lower removed_dir was actually renamed and not removed,
+	# so all its children can be found under renamed_dir
+	sudo mkdir changes/renamed_dir
+	sudo setfattr -n trusted.overlay.redirect -v '/removed_tests/removed_dir' changes/renamed_dir
 
 OVERLAY := ../overlay
 

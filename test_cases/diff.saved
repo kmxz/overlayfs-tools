@@ -10,6 +10,7 @@ Added: /normal_merged_dir/only_new
 Added: /removed_tests/replaced by a file
 Added: /removed_tests/replaced_by_opaque/
 Added: /removed_tests/replaced_by_symlink
+Added: /renamed_dir/
 Modified: /modified_dir/sub_1/permission/
 Modified: /modified_dir/sub_1/permission/changed$file
 Modified: /modified_dir/sub_1/permission/dir/

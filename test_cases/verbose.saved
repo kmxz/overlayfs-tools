@@ -15,6 +15,7 @@ Added: /removed_tests/replaced_by_opaque/
 Added: /removed_tests/replaced_by_opaque/new_file
 Added: /removed_tests/replaced_by_opaque/new_subdir/
 Added: /removed_tests/replaced_by_symlink
+Added: /renamed_dir/
 Modified: /modified_dir/sub_1/permission/
 Modified: /modified_dir/sub_1/permission/changed$file
 Modified: /modified_dir/sub_1/permission/dir/
