@@ -211,7 +211,7 @@ static int vacuum_dp(const char *lower_path, const char* upper_path, const size_
     }
     if (opaque) { return 0; }
     // this directory might be empty if all children are deleted in previous commands. but we simply don't test whether it's that case
-    return command(script_stream, "rmdir --ignore-fail-on-non-empty %", upper_path);
+    return command(script_stream, "rmdir --ignore-fail-on-non-empty %U", upper_path);
 }
 
 static int vacuum_f(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
@@ -223,7 +223,7 @@ static int vacuum_f(const char *lower_path, const char* upper_path, const size_t
         return -1;
     }
     if (!identical) { return 0; }
-    return command(script_stream, "rm %", upper_path);
+    return command(script_stream, "rm %U", upper_path);
 }
 
 static int vacuum_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
@@ -235,7 +235,7 @@ static int vacuum_sl(const char *lower_path, const char* upper_path, const size_
         return -1;
     }
     if (!identical) { return 0; }
-    return command(script_stream, "rm %", upper_path);
+    return command(script_stream, "rm %U", upper_path);
 }
 
 void print_only_in(const char *path) {
@@ -439,19 +439,19 @@ static int merge_d(const char *lower_path, const char* upper_path, const size_t 
             bool opaque = false;
             if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
             if (opaque) {
-                if (command(script_stream, "rm -r %", lower_path) < 0) { return -1; };
+                if (command(script_stream, "rm -r %L", lower_path) < 0) { return -1; };
             } else {
                 if (!permission_identical(lower_status, upper_status)) {
-                    command(script_stream, "chmod --reference % %", upper_path, lower_path);
+                    command(script_stream, "chmod --reference %U %L", upper_path, lower_path);
                 }
                 return 0; // children must be recursed, and directory itself does not need to be printed
             }
         } else {
-            command(script_stream, "rm %", lower_path);
+            command(script_stream, "rm %L", lower_path);
         }
     }
     *fts_instr = FTS_SKIP;
-    return command(script_stream, "mv -T % %", upper_path, lower_path);
+    return command(script_stream, "mv -T %U %L", upper_path, lower_path);
 }
 
 static int merge_dp(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
@@ -460,7 +460,7 @@ static int merge_dp(const char *lower_path, const char* upper_path, const size_t
             bool opaque = false;
             if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
             if (!opaque) { // delete the directory: it should be empty already
-                return command(script_stream, "rmdir %", upper_path);
+                return command(script_stream, "rmdir %U", upper_path);
             }
         }
     }
@@ -476,15 +476,15 @@ static int merge_f(const char *lower_path, const char* upper_path, const size_t 
         fprintf(stderr, "Found metacopy/redirect on %s. Merging metacopy/redirect is not supported - Abort.\n", upper_path);
         return -1;
     }
-    return command(script_stream, "rm -rf %", lower_path) || command(script_stream, "mv -T % %", upper_path, lower_path);
+    return command(script_stream, "rm -rf %L", lower_path) || command(script_stream, "mv -T %U %L", upper_path, lower_path);
 }
 
 static int merge_sl(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
-    return command(script_stream, "rm -rf %", lower_path) || command(script_stream, "mv -T % %", upper_path, lower_path);
+    return command(script_stream, "rm -rf %L", lower_path) || command(script_stream, "mv -T %U %L", upper_path, lower_path);
 }
 
 static int merge_whiteout(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
-    return command(script_stream, "rm -r %", lower_path) || command(script_stream, "rm %", upper_path);
+    return command(script_stream, "rm -r %L", lower_path) || command(script_stream, "rm %U", upper_path);
 }
 
 typedef int (*TRAVERSE_CALLBACK)(const char *lower_path, const char* upper_path, const size_t lower_root_len, const struct stat *lower_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr);

@@ -117,8 +117,8 @@ bool brief;
 
 int main(int argc, char *argv[]) {
 
-    char lower[PATH_MAX] = "";
-    char upper[PATH_MAX] = "";
+    char *lower = NULL;
+    char *upper = NULL;
 
     static struct option long_options[] = {
         { "lowerdir", required_argument, 0, 'l' },
@@ -131,13 +131,15 @@ int main(int argc, char *argv[]) {
 
     int opt = 0;
     int long_index = 0;
-    while ((opt = getopt_long_only(argc, argv, "", long_options, &long_index)) != -1) {
+    while ((opt = getopt_long_only(argc, argv, "l:u:hvb", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
-                if (realpath(optarg, lower) == NULL) { lower[0] = '\0'; }
+                lower = realpath(optarg, NULL);
+                if (lower) { vars[LOWERDIR] = lower; }
                 break;
             case 'u':
-                if (realpath(optarg, upper) == NULL) { upper[0] = '\0'; }
+                upper = realpath(optarg, NULL);
+                if (upper) { vars[UPPERDIR] = upper; }
                 break;
             case 'h':
                 print_help();
@@ -156,7 +158,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (lower[0] == '\0') {
+    if (!lower) {
         fprintf(stderr, "Lower directory not specified.\n");
         goto see_help;
     }
@@ -164,12 +166,12 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Lower directory cannot be opened.\n");
         goto see_help;
     }
-    if (upper[0] == '\0') {
+    if (!upper) {
         fprintf(stderr, "Upper directory not specified.\n");
         goto see_help;
     }
     if (!directory_exists(upper)) {
-        fprintf(stderr, "Lower directory cannot be opened.\n");
+        fprintf(stderr, "Upper directory cannot be opened.\n");
         goto see_help;
     }
     if (!check_xattr_trusted(upper)) {
