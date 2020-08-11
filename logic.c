@@ -550,6 +550,21 @@ int traverse(const char *lower_root, const char *upper_root, FILE* script_stream
     return fts_close(ftsp) || return_val;
 }
 
+static int deref_d(const char *mnt_path, const char* upper_path, const size_t mnt_root_len, const struct stat *mnt_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
+    bool redirect;
+    if (is_redirect(upper_path, &redirect) < 0) { return -1; }
+    if (!redirect) { return 0; }
+    *fts_instr = FTS_SKIP;
+    return command(script_stream, "rm -rf %U", upper_path) || command(script_stream, "cp -a %M %U", mnt_path, upper_path);
+}
+
+static int deref_f(const char *mnt_path, const char* upper_path, const size_t mnt_root_len, const struct stat *mnt_status, const struct stat *upper_status, FILE* script_stream, int *fts_instr) {
+    bool metacopy;
+    if (is_metacopy(upper_path, &metacopy) < 0) { return -1; }
+    if (!metacopy) { return 0; }
+    return command(script_stream, "rm -r %U", upper_path) || command(script_stream, "cp -a %M %U", mnt_path, upper_path);
+}
+
 int vacuum(const char* lowerdir, const char* upperdir, FILE* script_stream) {
     return traverse(lowerdir, upperdir, script_stream, vacuum_d, vacuum_dp, vacuum_f, vacuum_sl, NULL);
 }
@@ -560,4 +575,8 @@ int diff(const char* lowerdir, const char* upperdir) {
 
 int merge(const char* lowerdir, const char* upperdir, FILE* script_stream) {
     return traverse(lowerdir, upperdir, script_stream, merge_d, merge_dp, merge_f, merge_sl, merge_whiteout);
+}
+
+int deref(const char* mountdir, const char* upperdir, FILE* script_stream) {
+    return traverse(mountdir, upperdir, script_stream, deref_d, NULL, deref_f, NULL, NULL);
 }

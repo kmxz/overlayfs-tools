@@ -11,6 +11,7 @@ char * vars[NUM_VARS];
 const char * var_names[NUM_VARS] = {
     "LOWERDIR",
     "UPPERDIR",
+    "MOUNTDIR",
     "LOWERNEW",
     "UPPERNEW",
 };

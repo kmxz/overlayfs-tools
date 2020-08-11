@@ -4,6 +4,7 @@
 enum {
     LOWERDIR,
     UPPERDIR,
+    MOUNTDIR,
     LOWERNEW,
     UPPERNEW,
     NUM_VARS

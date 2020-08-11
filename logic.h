@@ -27,4 +27,11 @@ int diff(const char* lowerdir, const char* upperdir);
  */
 int merge(const char* lowerdir, const char* upperdir, FILE* script_stream);
 
+/*
+ * Unfold metacopy and redirect upper.
+ *
+ * mountdir is required and lowerdir is irrelevant.
+ */
+int deref(const char* mountdir, const char* upperdir, FILE* script_stream);
+
 #endif //OVERLAYFS_TOOLS_LOGIC_H

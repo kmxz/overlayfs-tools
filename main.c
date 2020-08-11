@@ -28,10 +28,12 @@ void print_help() {
     puts("  vacuum - remove duplicated files in upperdir where copy_up is done but the file is not actually modified");
     puts("  diff   - show the list of actually changed files");
     puts("  merge  - merge all changes from upperdir to lowerdir, and clear upperdir");
+    puts("  deref  - copy changes from upperdir to a new upperdir unfolding redirect and metacopy");
     puts("");
     puts("Options:");
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
+    puts("  -m, --mountdir=MOUNTDIR    the mountdir of OverlayFS (optional)");
     puts("  -L, --lowernew=LOWERNEW    the lowerdir of new OverlayFS (optional)");
     puts("  -U, --uppernew=UPPERNEW    the upperdir of new OverlayFS (optional)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
@@ -127,11 +129,12 @@ int main(int argc, char *argv[]) {
 
     char *lower = NULL;
     char *upper = NULL;
-    char *dir;
+    char *dir, *mnt = NULL;
 
     static struct option long_options[] = {
         { "lowerdir", required_argument, 0, 'l' },
         { "upperdir", required_argument, 0, 'u' },
+        { "mountdir", required_argument, 0, 'm' },
         { "lowernew", required_argument, 0, 'L' },
         { "uppernew", required_argument, 0, 'U' },
         { "help",     no_argument      , 0, 'h' },
@@ -142,7 +145,7 @@ int main(int argc, char *argv[]) {
 
     int opt = 0;
     int long_index = 0;
-    while ((opt = getopt_long_only(argc, argv, "l:u:L:U:hvb", long_options, &long_index)) != -1) {
+    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:hvb", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
                 lower = realpath(optarg, NULL);
@@ -151,6 +154,10 @@ int main(int argc, char *argv[]) {
             case 'u':
                 upper = realpath(optarg, NULL);
                 if (upper) { vars[UPPERDIR] = upper; }
+                break;
+            case 'm':
+                mnt = realpath(optarg, NULL);
+                if (mnt) { vars[MOUNTDIR] = mnt; }
                 break;
             case 'L':
                 directory_create("New lowerdir", optarg);
@@ -218,6 +225,15 @@ int main(int argc, char *argv[]) {
             script = create_shell_script(filename_template);
             if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
             out = merge(lower, upper, script);
+        } else if (strcmp(argv[optind], "deref") == 0) {
+            if (!mnt || !vars[UPPERNEW]) { fprintf(stderr, "'deref' command requires --uppernew and --mountdir.\n"); return EXIT_FAILURE; }
+            if (!directory_exists(mnt)) {
+                fprintf(stderr, "OverlayFS mount directory cannot be opened.\n");
+                goto see_help;
+            }
+            script = create_shell_script(filename_template);
+            if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
+            out = deref(mnt, upper, script);
         } else {
             fprintf(stderr, "Action not supported.\n");
             goto see_help;
