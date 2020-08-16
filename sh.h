@@ -4,6 +4,8 @@
 enum {
     LOWERDIR,
     UPPERDIR,
+    LOWERNEW,
+    UPPERNEW,
     NUM_VARS
 };
 

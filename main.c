@@ -32,6 +32,8 @@ void print_help() {
     puts("Options:");
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
+    puts("  -L, --lowernew=LOWERNEW    the lowerdir of new OverlayFS (optional)");
+    puts("  -U, --uppernew=UPPERNEW    the upperdir of new OverlayFS (optional)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
     puts("  -b, --brief                with diff action only: conform to output of diff --brief --recursive --no-dereference");
     puts("  -h, --help                 show this help text");
@@ -91,6 +93,12 @@ bool directory_exists(const char *path) {
     return (sb.st_mode & S_IFMT) == S_IFDIR;
 }
 
+bool directory_create(const char *name, const char *path) {
+    if (mkdir(path, 0755) == 0 || errno == EEXIST) { return true; }
+    fprintf(stderr, "%s directory '%s' does not exist and cannot be created.\n", name, path);
+    exit(EXIT_FAILURE);
+}
+
 bool real_check_xattr_trusted(const char *tmp_path, int tmp_file) {
     int ret = fsetxattr(tmp_file, "trusted.overlay.test", "naive", 5, 0);
     close(tmp_file);
@@ -119,10 +127,13 @@ int main(int argc, char *argv[]) {
 
     char *lower = NULL;
     char *upper = NULL;
+    char *dir;
 
     static struct option long_options[] = {
         { "lowerdir", required_argument, 0, 'l' },
         { "upperdir", required_argument, 0, 'u' },
+        { "lowernew", required_argument, 0, 'L' },
+        { "uppernew", required_argument, 0, 'U' },
         { "help",     no_argument      , 0, 'h' },
         { "verbose",  no_argument      , 0, 'v' },
         { "brief",    no_argument      , 0, 'b' },
@@ -131,7 +142,7 @@ int main(int argc, char *argv[]) {
 
     int opt = 0;
     int long_index = 0;
-    while ((opt = getopt_long_only(argc, argv, "l:u:hvb", long_options, &long_index)) != -1) {
+    while ((opt = getopt_long_only(argc, argv, "l:u:L:U:hvb", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
                 lower = realpath(optarg, NULL);
@@ -140,6 +151,16 @@ int main(int argc, char *argv[]) {
             case 'u':
                 upper = realpath(optarg, NULL);
                 if (upper) { vars[UPPERDIR] = upper; }
+                break;
+            case 'L':
+                directory_create("New lowerdir", optarg);
+                dir = realpath(optarg, NULL);
+                if (dir) { vars[LOWERNEW] = dir; }
+                break;
+            case 'U':
+                directory_create("New upperdir", optarg);
+                dir = realpath(optarg, NULL);
+                if (dir) { vars[UPPERNEW] = dir; }
                 break;
             case 'h':
                 print_help();
@@ -178,7 +199,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "The program cannot write trusted.* xattr. Try run again as root.\n");
         return EXIT_FAILURE;
     }
-    if (check_mounted(lower, upper)) {
+    // Relax check for mounted overlay if we are not going to modify lowerdir/upperdir
+    if ((!vars[LOWERNEW] || !vars[UPPERNEW]) && check_mounted(lower, upper)) {
         return EXIT_FAILURE;
     }
 

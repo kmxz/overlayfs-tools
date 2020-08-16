@@ -11,6 +11,8 @@ char * vars[NUM_VARS];
 const char * var_names[NUM_VARS] = {
     "LOWERDIR",
     "UPPERDIR",
+    "LOWERNEW",
+    "UPPERNEW",
 };
 
 int quote(const char *filename, FILE *output);
@@ -32,6 +34,21 @@ FILE* create_shell_script(char *tmp_path_buffer) {
             if (quote(vars[i], f) < 0) { return NULL; }
             if (fputc('\n', f) == EOF) { return NULL; }
 	}
+    }
+    // Non-empty *NEW vars make a backup copy and override *DIR vars
+    if (vars[LOWERNEW]) {
+        fprintf(f, "rm -rf \"$LOWERNEW\"\n");
+        fprintf(f, "cp -a \"$LOWERDIR\" \"$LOWERNEW\"\n");
+        fprintf(f, "LOWERDIR=");
+        if (quote(vars[LOWERNEW], f) < 0) { return NULL; }
+        if (fputc('\n', f) == EOF) { return NULL; }
+    }
+    if (vars[UPPERNEW]) {
+        fprintf(f, "rm -rf \"$UPPERNEW\"\n");
+        fprintf(f, "cp -a \"$UPPERDIR\" \"$UPPERNEW\"\n");
+        fprintf(f, "UPPERDIR=");
+        if (quote(vars[UPPERNEW], f) < 0) { return NULL; }
+        if (fputc('\n', f) == EOF) { return NULL; }
     }
     return f;
 }
