@@ -18,3 +18,7 @@ sh.o: sh.c sh.h
 
 clean:
 	rm -f main.o logic.o sh.o overlay
+
+tests: overlay
+	make -C test_cases clean
+	make -C test_cases

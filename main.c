@@ -28,11 +28,16 @@ void print_help() {
     puts("  vacuum - remove duplicated files in upperdir where copy_up is done but the file is not actually modified");
     puts("  diff   - show the list of actually changed files");
     puts("  merge  - merge all changes from upperdir to lowerdir, and clear upperdir");
+    puts("  deref  - copy changes from upperdir to a new upperdir unfolding redirect and metacopy");
     puts("");
     puts("Options:");
     puts("  -l, --lowerdir=LOWERDIR    the lowerdir of OverlayFS (required)");
     puts("  -u, --upperdir=UPPERDIR    the upperdir of OverlayFS (required)");
+    puts("  -m, --mountdir=MOUNTDIR    the mountdir of OverlayFS (optional)");
+    puts("  -L, --lowernew=LOWERNEW    the lowerdir of new OverlayFS (optional)");
+    puts("  -U, --uppernew=UPPERNEW    the upperdir of new OverlayFS (optional)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
+    puts("  -b, --brief                with diff action only: conform to output of diff --brief --recursive --no-dereference");
     puts("  -h, --help                 show this help text");
     puts("");
     puts("See https://github.com/kmxz/overlayfs-tools/ for warnings and more information.");
@@ -90,6 +95,12 @@ bool directory_exists(const char *path) {
     return (sb.st_mode & S_IFMT) == S_IFDIR;
 }
 
+bool directory_create(const char *name, const char *path) {
+    if (mkdir(path, 0755) == 0 || errno == EEXIST) { return true; }
+    fprintf(stderr, "%s directory '%s' does not exist and cannot be created.\n", name, path);
+    exit(EXIT_FAILURE);
+}
+
 bool real_check_xattr_trusted(const char *tmp_path, int tmp_file) {
     int ret = fsetxattr(tmp_file, "trusted.overlay.test", "naive", 5, 0);
     close(tmp_file);
@@ -110,35 +121,64 @@ bool check_xattr_trusted(const char *upper) {
     return ret;
 }
 
+// currently, brief and verbose are mutually exclusive
+bool verbose;
+bool brief;
+
 int main(int argc, char *argv[]) {
 
-    char lower[PATH_MAX] = "";
-    char upper[PATH_MAX] = "";
-    bool verbose = false;
+    char *lower = NULL;
+    char *upper = NULL;
+    char *dir, *mnt = NULL;
 
     static struct option long_options[] = {
         { "lowerdir", required_argument, 0, 'l' },
         { "upperdir", required_argument, 0, 'u' },
+        { "mountdir", required_argument, 0, 'm' },
+        { "lowernew", required_argument, 0, 'L' },
+        { "uppernew", required_argument, 0, 'U' },
         { "help",     no_argument      , 0, 'h' },
         { "verbose",  no_argument      , 0, 'v' },
+        { "brief",    no_argument      , 0, 'b' },
         { 0,          0,                 0,  0  }
     };
 
     int opt = 0;
     int long_index = 0;
-    while ((opt = getopt_long_only(argc, argv, "", long_options, &long_index)) != -1) {
+    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:hvb", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
-                if (realpath(optarg, lower) == NULL) { lower[0] = '\0'; }
+                lower = realpath(optarg, NULL);
+                if (lower) { vars[LOWERDIR] = lower; }
                 break;
             case 'u':
-                if (realpath(optarg, upper) == NULL) { upper[0] = '\0'; }
+                upper = realpath(optarg, NULL);
+                if (upper) { vars[UPPERDIR] = upper; }
+                break;
+            case 'm':
+                mnt = realpath(optarg, NULL);
+                if (mnt) { vars[MOUNTDIR] = mnt; }
+                break;
+            case 'L':
+                directory_create("New lowerdir", optarg);
+                dir = realpath(optarg, NULL);
+                if (dir) { vars[LOWERNEW] = dir; }
+                break;
+            case 'U':
+                directory_create("New upperdir", optarg);
+                dir = realpath(optarg, NULL);
+                if (dir) { vars[UPPERNEW] = dir; }
                 break;
             case 'h':
                 print_help();
                 return EXIT_SUCCESS;
             case 'v':
                 verbose = true;
+                brief = false;
+                break;
+            case 'b':
+                verbose = false;
+                brief = true;
                 break;
             default:
                 fprintf(stderr, "Option %c is not supported.\n", opt);
@@ -146,7 +186,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (lower[0] == '\0') {
+    if (!lower) {
         fprintf(stderr, "Lower directory not specified.\n");
         goto see_help;
     }
@@ -154,19 +194,20 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Lower directory cannot be opened.\n");
         goto see_help;
     }
-    if (upper[0] == '\0') {
+    if (!upper) {
         fprintf(stderr, "Upper directory not specified.\n");
         goto see_help;
     }
     if (!directory_exists(upper)) {
-        fprintf(stderr, "Lower directory cannot be opened.\n");
+        fprintf(stderr, "Upper directory cannot be opened.\n");
         goto see_help;
     }
     if (!check_xattr_trusted(upper)) {
         fprintf(stderr, "The program cannot write trusted.* xattr. Try run again as root.\n");
         return EXIT_FAILURE;
     }
-    if (check_mounted(lower, upper)) {
+    // Relax check for mounted overlay if we are not going to modify lowerdir/upperdir
+    if ((!vars[LOWERNEW] || !vars[UPPERNEW]) && check_mounted(lower, upper)) {
         return EXIT_FAILURE;
     }
 
@@ -175,15 +216,24 @@ int main(int argc, char *argv[]) {
         char filename_template[] = "overlay-tools-XXXXXX.sh";
         FILE *script = NULL;
         if (strcmp(argv[optind], "diff") == 0) {
-            out = diff(lower, upper, verbose);
+            out = diff(lower, upper);
         } else if (strcmp(argv[optind], "vacuum") == 0) {
             script = create_shell_script(filename_template);
             if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
-            out = vacuum(lower, upper, verbose, script);
+            out = vacuum(lower, upper, script);
         } else if (strcmp(argv[optind], "merge") == 0) {
             script = create_shell_script(filename_template);
             if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
-            out = merge(lower, upper, verbose, script);
+            out = merge(lower, upper, script);
+        } else if (strcmp(argv[optind], "deref") == 0) {
+            if (!mnt || !vars[UPPERNEW]) { fprintf(stderr, "'deref' command requires --uppernew and --mountdir.\n"); return EXIT_FAILURE; }
+            if (!directory_exists(mnt)) {
+                fprintf(stderr, "OverlayFS mount directory cannot be opened.\n");
+                goto see_help;
+            }
+            script = create_shell_script(filename_template);
+            if (script == NULL) { fprintf(stderr, "Script file cannot be created.\n"); return EXIT_FAILURE; }
+            out = deref(mnt, upper, script);
         } else {
             fprintf(stderr, "Action not supported.\n");
             goto see_help;
