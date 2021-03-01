@@ -21,8 +21,8 @@
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
 
-void print_help() {
-    puts("Usage: %s command options");
+void print_help(const char *program) {
+    printf("Usage: %s command options\n", program);
     puts("");
     puts("Commands:");
     puts("  vacuum - remove duplicated files in upperdir where copy_up is done but the file is not actually modified");
@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
                 if (dir) { vars[UPPERNEW] = dir; }
                 break;
             case 'h':
-                print_help();
+                print_help(argv[0]);
                 return EXIT_SUCCESS;
             case 'v':
                 verbose = true;
