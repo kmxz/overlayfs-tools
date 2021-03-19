@@ -7,8 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <attr/xattr.h>
-#include <attr/attributes.h>
+#include <sys/xattr.h>
 #include <fts.h>
 #include <libgen.h>
 #include "logic.h"
