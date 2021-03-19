@@ -12,7 +12,8 @@
 #include <linux/limits.h>
 #include <stdbool.h>
 #include <sys/stat.h>
-#include <attr/xattr.h>
+#include <sys/xattr.h>
+#include <errno.h>
 #ifndef _SYS_STAT_H
   #include <linux/stat.h>
 #endif
