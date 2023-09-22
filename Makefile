@@ -1,21 +1,21 @@
-CFLAGS = -Wall -g
+CFLAGS = -Wall -std=gnu11
 LFLAGS = -lm
 CC = gcc
 
 all: overlay
 
-objects = fsck.o common.o lib.o check.o mount.o path.o overlayfs.o
-
-overlay: $(objects)
-	$(CC) $(LFLAGS) $(objects) -o fsck.overlay
+objects_fsck = fsck.o common.o lib.o check.o mount.o path.o overlayfs.o
+objects_tools = main.o logic.o sh.o
+overlay: $(objects_tools) $(objects_fsck)
+	$(CC) $(LFLAGS) $(objects_tools) -o overlay
+	$(CC) $(LFLAGS) $(objects_fsck) -o fsck.overlay
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f *.o fsck.overlay
-	rm -rf bin
+	rm -f *.o overlay fsck.overlay
 
-install: all
-	mkdir bin
-	cp fsck.overlay bin
+tests: overlay
+	make -C test_cases clean
+	make -C test_cases
