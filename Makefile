@@ -1,5 +1,5 @@
 CFLAGS = -Wall -std=gnu11
-LFLAGS = -lm
+LDLIBS = -lm
 CC = gcc
 
 all: overlay
@@ -7,8 +7,8 @@ all: overlay
 objects_fsck = fsck.o common.o lib.o check.o mount.o path.o overlayfs.o
 objects_tools = main.o logic.o sh.o
 overlay: $(objects_tools) $(objects_fsck)
-	$(CC) $(LFLAGS) $(objects_tools) -o overlay
-	$(CC) $(LFLAGS) $(objects_fsck) -o fsck.overlay
+	$(CC) $(objects_tools) -o overlay $(LDLIBS)
+	$(CC) $(objects_fsck) -o fsck.overlay
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<
