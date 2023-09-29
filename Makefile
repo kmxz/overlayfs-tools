@@ -8,7 +8,7 @@ objects_fsck = fsck.o common.o lib.o check.o mount.o path.o overlayfs.o
 objects_tools = main.o logic.o sh.o
 overlay: $(objects_tools) $(objects_fsck)
 	$(CC) $(objects_tools) -o overlay $(LDLIBS)
-	$(CC) $(objects_fsck) -o fsck.overlay
+	$(CC) $(objects_fsck) -o fsck.overlay $(LDLIBS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<
