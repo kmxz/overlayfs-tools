@@ -88,9 +88,20 @@ For safety reasons, vacuum and merge will not actually modify the filesystem, bu
 
 ## Build
 
-Simple `make` should be sufficient
+You'll need to install the Meson build system on your system first, make sure to install a version ≥ 0.54:
 
-    $ make
+``` bash 
+python3 -m pip install meson ninja
+```
+
+To build the project then run the following:
+
+``` bash
+cd /path/to/overlayfs-tools
+meson setup builddir && cd builddir
+meson compile
+sudo meson install
+```
 
 ## Example usage
 
