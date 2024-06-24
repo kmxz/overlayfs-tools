@@ -23,6 +23,11 @@
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
 
+// currently, brief and verbose are mutually exclusive
+bool verbose;
+bool brief;
+bool ignore;
+
 void print_help(const char *program) {
     printf("Usage: %s command options\n", program);
     puts("");
@@ -38,6 +43,7 @@ void print_help(const char *program) {
     puts("  -m, --mountdir=MOUNTDIR    the mountdir of OverlayFS (optional)");
     puts("  -L, --lowernew=LOWERNEW    the lowerdir of new OverlayFS (optional)");
     puts("  -U, --uppernew=UPPERNEW    the upperdir of new OverlayFS (optional)");
+    puts("  -i  --ignore-mounted       don't prompt if OverlayFS is still mounted (optional)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
     puts("  -b, --brief                with diff action only: conform to output of diff --brief --recursive --no-dereference");
     puts("  -h, --help                 show this help text");
@@ -81,7 +87,7 @@ bool is_mounted(const char *lower, const char *upper) {
 }
 
 bool check_mounted(const char *lower, const char *upper) {
-    if (is_mounted(lower, upper)) {
+    if (is_mounted(lower, upper) && !ignore) {
         printf("It is strongly recommended to unmount OverlayFS first. Still continue (not recommended)?: \n");
         int r = getchar();
         if (r != 'Y' && r != 'y') {
@@ -123,10 +129,6 @@ bool check_xattr_trusted(const char *upper) {
     return ret;
 }
 
-// currently, brief and verbose are mutually exclusive
-bool verbose;
-bool brief;
-
 int main(int argc, char *argv[]) {
 
     char *lower = NULL;
@@ -139,6 +141,7 @@ int main(int argc, char *argv[]) {
         { "mountdir", required_argument, 0, 'm' },
         { "lowernew", required_argument, 0, 'L' },
         { "uppernew", required_argument, 0, 'U' },
+        { "ignore",   no_argument      , 0, 'i' },
         { "help",     no_argument      , 0, 'h' },
         { "verbose",  no_argument      , 0, 'v' },
         { "brief",    no_argument      , 0, 'b' },
@@ -147,7 +150,7 @@ int main(int argc, char *argv[]) {
 
     int opt = 0;
     int long_index = 0;
-    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:hvb", long_options, &long_index)) != -1) {
+    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:ihvb", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
                 lower = realpath(optarg, NULL);
@@ -170,6 +173,9 @@ int main(int argc, char *argv[]) {
                 directory_create("New upperdir", optarg);
                 dir = realpath(optarg, NULL);
                 if (dir) { vars[UPPERNEW] = dir; }
+                break;
+            case 'i':
+                ignore = true;
                 break;
             case 'h':
                 print_help(argv[0]);
