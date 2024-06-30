@@ -46,7 +46,7 @@
 #include "mount.h"
 #include "overlayfs.h"
 
-char *program_name;
+extern char *program_name;
 
 struct ovl_fs ofs = {};
 int flags = 0;		/* user input option flags */

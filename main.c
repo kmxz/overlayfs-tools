@@ -20,6 +20,7 @@
 #endif
 #include "logic.h"
 #include "sh.h"
+#include "common.h"
 
 #define STRING_BUFFER_SIZE PATH_MAX * 2
 
@@ -27,6 +28,7 @@
 bool verbose;
 bool brief;
 bool ignore;
+extern char *program_name;
 
 void print_help(const char *program) {
     printf("Usage: %s command options\n", program);
@@ -45,6 +47,7 @@ void print_help(const char *program) {
     puts("  -U, --uppernew=UPPERNEW    the upperdir of new OverlayFS (optional)");
     puts("  -i  --ignore-mounted       don't prompt if OverlayFS is still mounted (optional)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
+    puts("  -V, --version              print project version");
     puts("  -b, --brief                with diff action only: conform to output of diff --brief --recursive --no-dereference");
     puts("  -h, --help                 show this help text");
     puts("");
@@ -144,13 +147,16 @@ int main(int argc, char *argv[]) {
         { "ignore",   no_argument      , 0, 'i' },
         { "help",     no_argument      , 0, 'h' },
         { "verbose",  no_argument      , 0, 'v' },
+        { "version",  no_argument      , 0, 'V' },
         { "brief",    no_argument      , 0, 'b' },
         { 0,          0,                 0,  0  }
     };
 
     int opt = 0;
     int long_index = 0;
-    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:ihvb", long_options, &long_index)) != -1) {
+    program_name = basename(argv[0]);
+
+    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:hvbV", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
                 lower = realpath(optarg, NULL);
@@ -178,7 +184,7 @@ int main(int argc, char *argv[]) {
                 ignore = true;
                 break;
             case 'h':
-                print_help(argv[0]);
+                print_help(program_name);
                 return EXIT_SUCCESS;
             case 'v':
                 verbose = true;
@@ -188,6 +194,9 @@ int main(int argc, char *argv[]) {
                 verbose = false;
                 brief = true;
                 break;
+            case 'V':
+                version();
+                exit(EXIT_SUCCESS);
             default:
                 fprintf(stderr, "Option %c is not supported.\n", opt);
                 goto see_help;
@@ -260,7 +269,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Please specify one action.\n");
 
 see_help:
-    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+    fprintf(stderr, "Try '%s --help' for more information.\n", program_name);
     return EXIT_FAILURE;
-
 }
