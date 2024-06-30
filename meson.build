@@ -1,7 +1,9 @@
-project('overlayfs-tools', 'c', default_options : ['c_std=gnu11'])
+project('overlayfs-tools', 'c',
+    default_options : ['c_std=gnu11'],
+    version : '2024.07')
 
 # Source files for executables
-overlay_src = ['main.c', 'logic.c', 'sh.c']
+overlay_src = ['main.c', 'logic.c', 'sh.c', 'common.c']
 fsck_src = ['fsck.c', 'common.c', 'lib.c', 'check.c', 'mount.c', 'path.c', 'overlayfs.c']
 
 # Dependencies for executables
@@ -11,8 +13,14 @@ musl_fts = dependency('musl-fts', method : 'pkg-config', required : false)
 fsck_dep = meson.get_compiler('c').find_library('m', required : false)
 
 # Executables
-overlay = executable('overlay', overlay_src, install : true, dependencies : musl_fts)
-executable('fsck.overlay', fsck_src, install : true, dependencies : [fsck_dep, musl_fts])
+overlay = executable('overlay', overlay_src,
+    install : true,
+    c_args : '-DOVERLAYFS_TOOLS_VERSION="@0@"'.format(meson.project_version()),
+    dependencies : musl_fts)
+executable('fsck.overlay', fsck_src,
+    install : true,
+    c_args : '-DOVERLAYFS_TOOLS_VERSION="@0@"'.format(meson.project_version()),
+    dependencies : [fsck_dep, musl_fts])
 
 # Custom targets for testing overlay functionality
 overlayed_tar = 'test_cases/overlayed.tar'

@@ -29,7 +29,7 @@
 #include "common.h"
 #include "config.h"
 
-extern char *program_name;
+char *program_name;
 
 /* #define DEBUG 1 */
 #ifdef DEBUG
@@ -115,5 +115,5 @@ char *sstrndup(const char *src, size_t num)
 
 void version(void)
 {
-	printf(_("Overlay utilities version %s\n"), PACKAGE_VERSION);
+	printf(_("OverlayFS Tools version %s\n"), OVERLAYFS_TOOLS_VERSION);
 }
