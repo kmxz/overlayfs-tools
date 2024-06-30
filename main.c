@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!lower) {
-        fprintf(stderr, "Lower directory not specified.\n");
+        fprintf(stderr, "Lower directory is not specified or doesn't exist.\n");
         goto see_help;
     }
     if (!directory_exists(lower)) {
