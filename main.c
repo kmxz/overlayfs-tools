@@ -30,6 +30,18 @@ bool brief;
 bool ignore;
 extern char *program_name;
 
+#ifndef __GLIBC__
+/*
+ * GNU basename implementation
+ */
+static const char *__basename(const char *filename) {
+    char *p = strrchr(filename, '/');
+    return p ? p + 1 : filename;
+}
+
+#define basename(x) __basename(x)
+#endif
+
 void print_help(const char *program) {
     printf("Usage: %s command options\n", program);
     puts("");
