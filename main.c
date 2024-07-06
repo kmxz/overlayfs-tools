@@ -28,7 +28,7 @@
 bool verbose;
 bool brief;
 bool ignore;
-extern char *program_name;
+extern const char *program_name;
 
 #ifndef __GLIBC__
 /*

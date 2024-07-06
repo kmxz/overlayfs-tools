@@ -29,7 +29,7 @@
 #include "common.h"
 #include "config.h"
 
-char *program_name;
+const char *program_name;
 
 /* #define DEBUG 1 */
 #ifdef DEBUG
