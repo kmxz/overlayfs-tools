@@ -151,24 +151,24 @@ int main(int argc, char *argv[]) {
     char *dir, *mnt = NULL;
 
     static struct option long_options[] = {
-        { "lowerdir", required_argument, 0, 'l' },
-        { "upperdir", required_argument, 0, 'u' },
-        { "mountdir", required_argument, 0, 'm' },
-        { "lowernew", required_argument, 0, 'L' },
-        { "uppernew", required_argument, 0, 'U' },
-        { "ignore",   no_argument      , 0, 'i' },
-        { "help",     no_argument      , 0, 'h' },
-        { "verbose",  no_argument      , 0, 'v' },
-        { "version",  no_argument      , 0, 'V' },
-        { "brief",    no_argument      , 0, 'b' },
-        { 0,          0,                 0,  0  }
+        { "lowerdir",       required_argument, 0, 'l' },
+        { "upperdir",       required_argument, 0, 'u' },
+        { "mountdir",       required_argument, 0, 'm' },
+        { "lowernew",       required_argument, 0, 'L' },
+        { "uppernew",       required_argument, 0, 'U' },
+        { "ignore-mounted", no_argument      , 0, 'i' },
+        { "help",           no_argument      , 0, 'h' },
+        { "verbose",        no_argument      , 0, 'v' },
+        { "version",        no_argument      , 0, 'V' },
+        { "brief",          no_argument      , 0, 'b' },
+        { 0,                0,                 0,  0  }
     };
 
     int opt = 0;
     int long_index = 0;
     program_name = basename(argv[0]);
 
-    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:hvbV", long_options, &long_index)) != -1) {
+    while ((opt = getopt_long_only(argc, argv, "l:u:m:L:U:ihvVb", long_options, &long_index)) != -1) {
         switch (opt) {
             case 'l':
                 lower = realpath(optarg, NULL);
