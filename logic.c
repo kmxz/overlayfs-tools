@@ -458,11 +458,11 @@ static int merge_dp(const char *lower_path, const char* upper_path, const size_t
         if (file_type(lower_status) == S_IFDIR) {
             bool opaque = false;
             if (is_opaquedir(upper_path, &opaque) < 0) { return -1; }
-if (strlen(lower_path) == lower_root_len)
-{
-// Finish, don't delete upper_path_root
-}
-else            if (!opaque) { // delete the directory: it should be empty already
+            if (strlen(lower_path) == lower_root_len)
+            {
+              // Finish, don't delete upper_path_root
+            }
+            else if (!opaque) { // delete the directory: it should be empty already
                 return command(script_stream, "rmdir %U", upper_path);
             }
         }
