@@ -28,6 +28,7 @@
 bool verbose;
 bool brief;
 bool ignore;
+bool force;
 extern const char *program_name;
 
 #ifndef __GLIBC__
@@ -58,6 +59,7 @@ void print_help(const char *program) {
     puts("  -L, --lowernew=LOWERNEW    the lowerdir of new OverlayFS (optional)");
     puts("  -U, --uppernew=UPPERNEW    the upperdir of new OverlayFS (optional)");
     puts("  -i  --ignore-mounted       don't prompt if OverlayFS is still mounted (optional)");
+    puts("  -f  --force-execution      also execute (and clean) the generated script in case of merge or vacuum (optional)");
     puts("  -v, --verbose              with diff action only: when a directory only exists in one version, still list every file of the directory");
     puts("  -V, --version              print project version");
     puts("  -b, --brief                with diff action only: conform to output of diff --brief --recursive --no-dereference");
@@ -157,6 +159,7 @@ int main(int argc, char *argv[]) {
         { "lowernew",       required_argument, 0, 'L' },
         { "uppernew",       required_argument, 0, 'U' },
         { "ignore-mounted", no_argument      , 0, 'i' },
+        { "force-execution", no_argument      , 0, 'f' },
         { "help",           no_argument      , 0, 'h' },
         { "verbose",        no_argument      , 0, 'v' },
         { "version",        no_argument      , 0, 'V' },
@@ -194,6 +197,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'i':
                 ignore = true;
+                break;
+            case 'f':
+                force = true;
                 break;
             case 'h':
                 print_help(program_name);
@@ -268,8 +274,23 @@ int main(int argc, char *argv[]) {
             goto see_help;
         }
         if (script != NULL) {
-            printf("The script %s is created. Run the script to do the actual work please. Remember to run it when the OverlayFS is not mounted.\n", filename_template);
             fclose(script);
+if (force)
+{
+            printf("The script %s is created. Running the script now, as force is set to true.\n", filename_template);
+            char *command = malloc(strlen(filename_template) * sizeof(char) + 10);
+            if (command != NULL)
+            {
+                sprintf(command, "bash %s", filename_template);
+                system(command);
+                sprintf(command, "rm %s", filename_template);
+                system(command);
+            }
+}
+else
+{
+            printf("The script %s is created. Run the script to do the actual work please. Remember to run it when the OverlayFS is not mounted.\n", filename_template);
+}
         }
         if (out) {
             fprintf(stderr, "Action aborted due to fatal error.\n");
