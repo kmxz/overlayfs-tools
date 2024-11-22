@@ -85,13 +85,18 @@ This project provides several tools:
 - **deref** - copy changes from `upperdir` to `uppernew` while unfolding redirect directories and metacopy regular files, so that new upperdir is compatible with legacy overlayfs driver.
 
 For safety reasons, vacuum and merge will not actually modify the filesystem, but generate a shell script to do the changes instead.
+Use -f to force execution.
 
 ## Build
 
 You'll need to install the Meson build system on your system first, make sure to install a version ≥ 0.54:
-
+- Using python package
 ``` bash 
 python3 -m pip install meson ninja
+```
+- Or install directly on debian linux
+``` bash
+apt install meson ninja-build
 ```
 
 To build the project then run the following:
