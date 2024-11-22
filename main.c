@@ -275,22 +275,22 @@ int main(int argc, char *argv[]) {
         }
         if (script != NULL) {
             fclose(script);
-if (force)
-{
-            printf("The script %s is created. Running the script now, as force is set to true.\n", filename_template);
-            char *command = malloc(strlen(filename_template) * sizeof(char) + 10);
-            if (command != NULL)
+            if (force)
             {
-                sprintf(command, "bash %s", filename_template);
-                system(command);
-                sprintf(command, "rm %s", filename_template);
-                system(command);
+                printf("The script %s is created. Running the script now, as force is set to true.\n", filename_template);
+                char *command = malloc(strlen(filename_template) * sizeof(char) + 10);
+                if (command != NULL)
+                {
+                    sprintf(command, "bash %s", filename_template);
+                    system(command);
+                    sprintf(command, "rm %s", filename_template);
+                    system(command);
+                }
             }
-}
-else
-{
-            printf("The script %s is created. Run the script to do the actual work please. Remember to run it when the OverlayFS is not mounted.\n", filename_template);
-}
+            else
+            {
+                printf("The script %s is created. Run the script to do the actual work please. Remember to run it when the OverlayFS is not mounted.\n", filename_template);
+            }
         }
         if (out) {
             fprintf(stderr, "Action aborted due to fatal error.\n");
