@@ -285,6 +285,7 @@ int main(int argc, char *argv[]) {
                     system(command);
                     sprintf(command, "rm %s", filename_template);
                     system(command);
+                    free(command);
                 }
             }
             else
