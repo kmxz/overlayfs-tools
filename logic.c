@@ -142,11 +142,11 @@ int regular_file_identical(const char *lower_path, const struct stat *lower_stat
     int lower_file = open(lower_path, O_RDONLY);
     int upper_file = open(upper_path, O_RDONLY);
     if (lower_file < 0) {
-        fprintf(stderr, "File %s can not be read for content.\n", lower_path);
+        fprintf(stderr, "File %s can not be read for content: %s\n", lower_path, strerror(errno));
         return -1;
     }
     if (upper_file < 0) {
-        fprintf(stderr, "File %s can not be read for content.\n", upper_path);
+        fprintf(stderr, "File %s can not be read for content: %s\n", upper_path, strerror(errno));
         return -1;
     }
     ssize_t read_lower; ssize_t read_upper;
