@@ -474,10 +474,13 @@ static int merge_f(const char *lower_path, const char* upper_path, const size_t 
     bool metacopy, redirect;
     if (is_metacopy(upper_path, &metacopy) < 0) { return -1; }
     if (is_redirect(upper_path, &redirect) < 0) { return -1; }
-    // merging metacopy is not supported, we must abort merge so lower data won't be deleted
-    if (metacopy || redirect) {
-        fprintf(stderr, "Found metacopy/redirect on %s. Merging metacopy/redirect is not supported - Abort.\n", upper_path);
+    // merging red is not supported, we must abort merge so lower data won't be deleted
+    if (redirect) {
+        fprintf(stderr, "Found redirect on %s. Merging redirect is not supported - Abort.\n", upper_path);
         return -1;
+    }
+    if (metacopy) {
+        return command(script_stream, "cp --attributes-only --preserve=all %U %L", upper_path, lower_path) || command(script_stream, "rm %U", upper_path);
     }
     return command(script_stream, "rm -rf %L", lower_path) || command(script_stream, "mv -T %U %L", upper_path, lower_path);
 }
