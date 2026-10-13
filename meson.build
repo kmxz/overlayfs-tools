@@ -11,6 +11,7 @@ fsck_src = ['fsck.c', 'common.c', 'lib.c', 'check.c', 'mount.c', 'path.c', 'over
 # If it's not found on the glibc systems, it's just ignored
 musl_fts = dependency('musl-fts', method : 'pkg-config', required : false)
 fsck_dep = meson.get_compiler('c').find_library('m', required : false)
+setfattr_available = find_program('setfattr')
 
 # Executables
 overlay = executable('overlay', overlay_src,
