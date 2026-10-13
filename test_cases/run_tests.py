@@ -26,6 +26,9 @@ commands = [
 for cmd in commands:
     run_command(cmd)
 
+# Check if the merged overlay is usable after mounting
+run_command('ninja mountable')
+
 # Perform the diff checks
 run_command('diff -u ../test_cases/diff.saved diff.out')
 run_command('diff -u ../test_cases/verbose.saved verbose.out')
