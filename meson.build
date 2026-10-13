@@ -91,7 +91,24 @@ brief_out = custom_target('brief.out',
 
 test('run_tests', find_program('test_cases/run_tests.py'))
 
+mountable = custom_target('mountable',
+    output : 'mountable',
+    command : [
+        'sh', '-c',
+        'sudo rm -rf changes/renamed_dir && ' +
+        'sudo ' + overlay.full_path() + ' -l permanent -u changes merge -f && ' +
+        'mkdir -p work lower mnt && ' +
+        'sudo mount -t overlay -o lowerdir=lower,upperdir=permanent,workdir=work overlay mnt &&' +
+        'trap "sudo umount mnt" EXIT && ' +
+        'find mnt -type f -print -exec cat {} + >/dev/null'
+    ]
+)
+
 custom_target('clean.tests',
     output : 'clean.tests',
-    command : ['sudo', 'rm', '-rf', 'permanent', 'changes', 'overlayed', 'brief.expected', 'brief.out', 'diff.out', 'verbose.out']
+    command : [
+        'sh', '-c',
+        'sudo umount mnt >/dev/null 2>&1 ; ' +
+        'sudo rm -rf permanent changes overlayed brief.expected brief.out diff.out verbose.out lower work mnt'
+    ]
 )
