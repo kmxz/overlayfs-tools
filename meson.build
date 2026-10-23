@@ -23,6 +23,7 @@ executable('fsck.overlay', fsck_src,
     c_args : '-DOVERLAYFS_TOOLS_VERSION="@0@"'.format(meson.project_version()),
     dependencies : [fsck_dep, musl_fts])
 
+if get_option('tests')
 # Custom targets for testing overlay functionality
 overlayed_tar = 'test_cases/overlayed.tar'
 lower_tar = 'test_cases/lower.tar'
@@ -113,3 +114,4 @@ custom_target('clean.tests',
         'sudo rm -rf permanent changes overlayed brief.expected brief.out diff.out verbose.out lower work mnt'
     ]
 )
+endif
