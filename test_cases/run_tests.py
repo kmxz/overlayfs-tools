@@ -17,8 +17,6 @@ commands = [
     'ninja changes',
     'ninja diff.out',
     'ninja verbose.out',
-    'ninja overlayed',
-    'ninja brief.expected',
     'ninja brief.out'
 ]
 
@@ -32,4 +30,4 @@ run_command('ninja mountable')
 # Perform the diff checks
 run_command('diff -u ../test_cases/diff.saved diff.out')
 run_command('diff -u ../test_cases/verbose.saved verbose.out')
-run_command('diff -u brief.expected brief.out')
+run_command('diff -u ../test_cases/brief.saved brief.out')

@@ -1,0 +1,27 @@
+File @WORKDIR@/permanent/deleted_files/file_by_dir is a regular file while file @WORKDIR@/changes/deleted_files/file_by_dir is a directory
+File @WORKDIR@/permanent/deleted_files/link-by-dir is a symbolic link while file @WORKDIR@/changes/deleted_files/link-by-dir is a directory
+File @WORKDIR@/permanent/normal_merged_dir/more_test/file_to_link is a regular file while file @WORKDIR@/changes/normal_merged_dir/more_test/file_to_link is a symbolic link
+File @WORKDIR@/permanent/normal_merged_dir/more_test/link_to_file is a symbolic link while file @WORKDIR@/changes/normal_merged_dir/more_test/link_to_file is a regular file
+File @WORKDIR@/permanent/removed_tests/replaced by a file is a directory while file @WORKDIR@/changes/removed_tests/replaced by a file is a regular file
+File @WORKDIR@/permanent/removed_tests/replaced_by_symlink is a directory while file @WORKDIR@/changes/removed_tests/replaced_by_symlink is a symbolic link
+Files @WORKDIR@/permanent/modified_dir/sub_1/permission/changed$file and @WORKDIR@/changes/modified_dir/sub_1/permission/changed$file differ
+Files @WORKDIR@/permanent/modified_dir/sub_1/sub_2/sub_3/file and @WORKDIR@/changes/modified_dir/sub_1/sub_2/sub_3/file differ
+Files @WORKDIR@/permanent/normal_merged_dir/changed" "file and @WORKDIR@/changes/normal_merged_dir/changed" "file differ
+Files @WORKDIR@/permanent/permission/changed_file and @WORKDIR@/changes/permission/changed_file differ
+Only in @WORKDIR@/changes/modified_dir/sub_1/sub_2/sub_3/sub_4: added
+Only in @WORKDIR@/changes/modified_dir/sub_1/sub_2: added_file
+Only in @WORKDIR@/changes/modified_dir: created
+Only in @WORKDIR@/changes/normal_merged_dir: only_new
+Only in @WORKDIR@/changes/removed_tests/replaced_by_opaque: new_file
+Only in @WORKDIR@/changes/removed_tests/replaced_by_opaque: new_subdir
+Only in @WORKDIR@/changes: renamed_dir
+Only in @WORKDIR@/permanent/deleted_files: dir_whiteout
+Only in @WORKDIR@/permanent/modified_dir/sub_1/sub_2/sub_3/sub_4: removed
+Only in @WORKDIR@/permanent/normal_merged_dir/more_test/by_opaque: a_file
+Only in @WORKDIR@/permanent/normal_merged_dir/more_test/by_opaque: another_file
+Only in @WORKDIR@/permanent/normal_merged_dir/more_test/by_opaque: third_file
+Only in @WORKDIR@/permanent/normal_merged_dir: only_old
+Only in @WORKDIR@/permanent/removed_tests/replaced_by_opaque: origin\subdir
+Only in @WORKDIR@/permanent/removed_tests: empty_removed_dir
+Only in @WORKDIR@/permanent/removed_tests: removed_dir
+Symbolic links @WORKDIR@/permanent/normal_merged_dir/changed_symlink and @WORKDIR@/changes/normal_merged_dir/changed_symlink differ
