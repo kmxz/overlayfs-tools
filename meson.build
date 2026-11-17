@@ -1,6 +1,6 @@
 project('overlayfs-tools', 'c',
     default_options : ['c_std=gnu11'],
-    version : '2025.01')
+    version : '2026.11')
 
 # Source files for executables
 overlay_src = ['main.c', 'logic.c', 'sh.c', 'common.c']
