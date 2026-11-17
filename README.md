@@ -94,9 +94,9 @@ You'll need to install the Meson build system on your system first, make sure to
 ``` bash
 python3 -m pip install meson ninja
 ```
-- Or install directly on debian linux
+- Or install directly on Debian / Ubuntu Linux systems:
 ``` bash
-apt install meson ninja-build
+apt install meson ninja-build attr
 ```
 
 To build the project then run the following:
