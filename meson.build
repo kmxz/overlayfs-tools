@@ -25,17 +25,8 @@ executable('fsck.overlay', fsck_src,
 
 if get_option('tests')
 # Custom targets for testing overlay functionality
-overlayed_tar = 'test_cases/overlayed.tar'
 lower_tar = 'test_cases/lower.tar'
 upper_tar = 'test_cases/upper.tar'
-
-overlayed = custom_target('overlayed',
-    input : overlayed_tar,
-    output : 'overlayed',
-    command : [
-        'sh', '-c', 'tar xf @INPUT@ && sudo cp -a permanent/removed_tests/removed_dir overlayed/renamed_dir'
-    ]
-)
 
 permanent = custom_target('permanent',
     input : lower_tar,
@@ -59,19 +50,11 @@ changes = custom_target('changes',
     ]
 )
 
-brief_expected = custom_target('brief.expected',
-    output : 'brief.expected',
-    command : [
-        'sh', '-c',
-        'diff -qr --no-dereference $(pwd)/permanent $(pwd)/overlayed 2>/dev/null | sed \'s/overlayed/changes/g\' | sort -u > @OUTPUT@'
-    ]
-)
-
 diff_out = custom_target('diff.out',
     output : 'diff.out',
     command : [
         'sh', '-c',
-        'sudo ' + overlay.full_path() + ' -l permanent -u changes diff | sort -u > @OUTPUT@'
+        'sudo ' + overlay.full_path() + ' -l permanent -u changes diff | LC_ALL=C sort -u > @OUTPUT@'
     ]
 )
 
@@ -79,7 +62,7 @@ verbose_out = custom_target('verbose.out',
     output : 'verbose.out',
     command : [
         'sh', '-c',
-        'sudo ' + overlay.full_path() + ' -l permanent -u changes diff -v | sort -u > @OUTPUT@'
+        'sudo ' + overlay.full_path() + ' -l permanent -u changes diff -v | LC_ALL=C sort -u > @OUTPUT@'
     ]
 )
 
@@ -87,7 +70,7 @@ brief_out = custom_target('brief.out',
     output : 'brief.out',
     command : [
         'sh', '-c',
-        'sudo ' + overlay.full_path() + ' -l permanent -u changes diff -b | sort -u > @OUTPUT@'
+        'sudo ' + overlay.full_path() + ' -l permanent -u changes diff -b | sed "s|$(pwd -P)|@WORKDIR@|g" | LC_ALL=C sort -u > @OUTPUT@'
     ]
 )
 
@@ -111,7 +94,7 @@ custom_target('clean.tests',
     command : [
         'sh', '-c',
         'sudo umount mnt >/dev/null 2>&1 ; ' +
-        'sudo rm -rf permanent changes overlayed brief.expected brief.out diff.out verbose.out lower work mnt'
+        'sudo rm -rf permanent changes brief.out diff.out verbose.out lower work mnt'
     ]
 )
 endif
